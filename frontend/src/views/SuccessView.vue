@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { openInBrowser, OPENCLAW_CONSOLE_URL } from '../api/helper'
 
 const router = useRouter()
 const { t } = useI18n()
 
 const actions = [
-  { icon: '🖥️', labelKey: 'success.openConsole', id: 'console' },
-  { icon: '💬', labelKey: 'success.connectTelegram', id: 'telegram' },
   { icon: '📖', labelKey: 'success.tutorial', id: 'tutorial' },
   { icon: '🔧', labelKey: 'success.moreConfig', id: 'config' },
 ]
@@ -16,7 +15,10 @@ function handleAction(id: string) {
   if (id === 'config') {
     router.push('/config')
   }
-  // Other actions: open external URLs via Tauri shell
+}
+
+function openConsole() {
+  openInBrowser(OPENCLAW_CONSOLE_URL)
 }
 
 function goToDashboard() {
@@ -30,6 +32,10 @@ function goToDashboard() {
     <h1>{{ t('success.title') }}</h1>
     <p class="success-subtitle">{{ t('success.subtitle') }}</p>
 
+    <button class="btn btn--primary btn--lg success-main-btn" @click="openConsole">
+      🌐 {{ t('success.openConsole') }}
+    </button>
+
     <div class="success-actions">
       <button
         v-for="a in actions"
@@ -42,11 +48,11 @@ function goToDashboard() {
       </button>
     </div>
 
-    <button class="btn btn--primary btn--lg" @click="goToDashboard" style="margin-top: 24px;">
-      📊 Go to Dashboard
+    <button class="btn btn--text" @click="goToDashboard" style="margin-top: 16px;">
+      Go to Dashboard →
     </button>
 
-    <p class="success-tray">{{ t('success.trayHint') }} 🟢</p>
+    <p class="success-tray">{{ t('success.trayHint') }}</p>
   </div>
 </template>
 
@@ -62,8 +68,13 @@ function goToDashboard() {
 .success-view h1 { margin-bottom: 8px; }
 .success-subtitle {
   color: var(--color-text-secondary);
-  margin-bottom: 32px;
+  margin-bottom: 24px;
   font-size: 16px;
+}
+.success-main-btn {
+  margin-bottom: 24px;
+  font-size: 16px;
+  padding: 14px 32px;
 }
 .success-actions {
   width: 100%;

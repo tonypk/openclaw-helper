@@ -5,12 +5,11 @@ defineProps<{
   running: boolean
   uptime?: string
   gateway?: string
-  memory?: string
-  cpu?: string
 }>()
 
 defineEmits<{
   toggle: []
+  openConsole: []
 }>()
 
 const { t } = useI18n()
@@ -27,14 +26,15 @@ const { t } = useI18n()
     <div class="status-card__info">
       <div v-if="uptime">{{ t('dashboard.uptime') }}: {{ uptime }}</div>
       <div v-if="gateway">Gateway: {{ gateway }}</div>
-      <div v-if="memory || cpu">
-        <span v-if="memory">Memory: {{ memory }}</span>
-        <span v-if="cpu"> | CPU: {{ cpu }}</span>
-      </div>
     </div>
-    <button class="btn" :class="running ? 'btn--danger' : 'btn--primary'" @click="$emit('toggle')">
-      {{ running ? `⏹ ${t('dashboard.stop')}` : `▶ ${t('dashboard.start')}` }}
-    </button>
+    <div class="status-card__actions">
+      <button class="btn" :class="running ? 'btn--danger' : 'btn--primary'" @click="$emit('toggle')">
+        {{ running ? `⏹ ${t('dashboard.stop')}` : `▶ ${t('dashboard.start')}` }}
+      </button>
+      <button v-if="running" class="btn btn--primary" @click="$emit('openConsole')">
+        🌐 {{ t('dashboard.openInBrowser') }}
+      </button>
+    </div>
   </div>
 </template>
 
@@ -67,5 +67,9 @@ const { t } = useI18n()
   color: var(--color-text-secondary);
   margin-bottom: 12px;
   line-height: 1.6;
+}
+.status-card__actions {
+  display: flex;
+  gap: 10px;
 }
 </style>

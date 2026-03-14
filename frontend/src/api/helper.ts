@@ -189,6 +189,20 @@ export async function checkUpdate(): Promise<UpdateInfo> {
   return { available: false };
 }
 
+// --- Utilities ---
+
+/** Open a URL in the user's default browser. */
+export async function openInBrowser(url: string): Promise<void> {
+  if (window.__TAURI__) {
+    await window.__TAURI__.core.invoke("plugin:shell|open", { path: url });
+  } else {
+    window.open(url, "_blank");
+  }
+}
+
+/** The default OpenClaw Gateway console URL. */
+export const OPENCLAW_CONSOLE_URL = "http://localhost:18789";
+
 // Tauri type augmentation
 declare global {
   interface Window {

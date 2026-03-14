@@ -3,7 +3,7 @@ import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import StatusCard from "../components/dashboard/StatusCard.vue";
 import QuickActions from "../components/dashboard/QuickActions.vue";
-import { checkUpdate } from "../api/helper";
+import { checkUpdate, openInBrowser, OPENCLAW_CONSOLE_URL } from "../api/helper";
 
 const { t } = useI18n();
 
@@ -13,18 +13,18 @@ const gateway = ref("ws://127.0.0.1:18789");
 const updateAvailable = ref(false);
 const updateVersion = ref("");
 
-const channels = ref([
-  { icon: "\u{1F4F1}", name: "Telegram", account: "@my_bot", online: true },
-  { icon: "\u{1F4AC}", name: "WhatsApp", account: "+86...", online: true },
-  { icon: "\u{1F3AE}", name: "Discord", account: "MyServer", online: false },
-]);
-
 function toggleService() {
   running.value = !running.value;
 }
 
+function openConsole() {
+  openInBrowser(OPENCLAW_CONSOLE_URL);
+}
+
 async function handleAction(id: string) {
-  if (id === "update") {
+  if (id === "console") {
+    openConsole();
+  } else if (id === "update") {
     try {
       const info = await checkUpdate();
       if (info.available) {
@@ -55,30 +55,9 @@ onMounted(() => {
         :running="running"
         :uptime="uptime"
         :gateway="gateway"
-        memory="156 MB"
-        cpu="2.1%"
         @toggle="toggleService"
+        @open-console="openConsole"
       />
-    </section>
-
-    <section class="dashboard__section">
-      <h3>{{ t('dashboard.channels') }}</h3>
-      <div class="channel-list">
-        <div v-for="ch in channels" :key="ch.name" class="channel-item">
-          <span class="channel-item__icon">{{ ch.icon }}</span>
-          <span class="channel-item__name">{{ ch.name }}</span>
-          <span class="channel-item__account">{{ ch.account }}</span>
-          <span
-            class="channel-item__status"
-            :class="{ 'channel-item__status--on': ch.online }"
-          >
-            {{ ch.online ? t('dashboard.online') : t('dashboard.offline') }}
-          </span>
-        </div>
-        <button class="btn btn--text btn--sm">
-          + {{ t('dashboard.addChannel') }}
-        </button>
-      </div>
     </section>
 
     <section class="dashboard__section">
@@ -102,33 +81,5 @@ onMounted(() => {
   font-size: 14px;
   color: var(--color-text-secondary);
   margin-bottom: 10px;
-}
-.channel-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.channel-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  background: var(--color-surface);
-  border-radius: 10px;
-  border: 1px solid var(--color-border);
-}
-.channel-item__icon { font-size: 18px; }
-.channel-item__name { font-weight: 500; min-width: 80px; }
-.channel-item__account { flex: 1; color: var(--color-text-secondary); font-size: 13px; }
-.channel-item__status {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  background: #fee2e2;
-  color: #ef4444;
-}
-.channel-item__status--on {
-  background: #d1fae5;
-  color: #059669;
 }
 </style>

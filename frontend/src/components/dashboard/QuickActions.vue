@@ -8,10 +8,10 @@ defineEmits<{
 }>()
 
 const actions = [
-  { id: 'console', icon: '📊', labelKey: 'dashboard.openConsole' },
+  { id: 'console', icon: '🌐', labelKey: 'dashboard.openConsole' },
   { id: 'logs', icon: '📋', labelKey: 'dashboard.viewLogs' },
   { id: 'update', icon: '🔄', labelKey: 'dashboard.checkUpdate' },
-  { id: 'settings', icon: '⚙️', labelKey: 'dashboard.settings' },
+  { id: 'reinstall', icon: '🔧', labelKey: 'dashboard.reinstall' },
 ]
 </script>
 
