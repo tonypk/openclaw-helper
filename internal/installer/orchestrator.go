@@ -99,7 +99,7 @@ func (o *Orchestrator) Status() InstallStatus {
 		ErrorMessage: o.state.ErrorMessage,
 		ErrorPhase:   o.state.ErrorPhase,
 		StartedAt:    o.state.StartedAt,
-		Overall:      o.calculateOverall(),
+		Overall:      o.calculateOverallLocked(),
 	}
 }
 
@@ -357,7 +357,11 @@ func (o *Orchestrator) emit(evt ProgressEvent) {
 func (o *Orchestrator) calculateOverall() int {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
+	return o.calculateOverallLocked()
+}
 
+// calculateOverallLocked computes overall progress. Caller must hold at least RLock.
+func (o *Orchestrator) calculateOverallLocked() int {
 	phases := AllPhases()
 	total := len(phases)
 	if total == 0 {
