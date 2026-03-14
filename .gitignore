@@ -17,3 +17,8 @@ Thumbs.db
 
 # Go
 vendor/
+
+# Tauri
+frontend/src-tauri/target/
+frontend/src-tauri/gen/
+frontend/src-tauri/binaries/

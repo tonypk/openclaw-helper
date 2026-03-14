@@ -1,0 +1,29 @@
+{
+  "identifier": "default",
+  "description": "Default capability for OpenClaw Helper",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "binaries/och-helper",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "binaries/och-helper",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    }
+  ]
+}

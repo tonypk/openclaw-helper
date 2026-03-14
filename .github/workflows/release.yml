@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            go_os: windows
+            go_arch: amd64
+            binary_ext: .exe
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            go_os: darwin
+            go_arch: arm64
+            binary_ext: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Go helper sidecar
+        run: |
+          CGO_ENABLED=0 GOOS=${{ matrix.go_os }} GOARCH=${{ matrix.go_arch }} go build -ldflags "-X main.version=${{ github.ref_name }}" -o frontend/src-tauri/binaries/och-helper-${{ matrix.target }}${{ matrix.binary_ext }} ./cmd/helper
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run Go tests
+        run: go test -v ./...
+
+      - name: Build and release Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: frontend
+          tagName: ${{ github.ref_name }}
+          releaseName: "OpenClaw Helper ${{ github.ref_name }}"
+          releaseBody: "See the assets to download and install this version."
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: true

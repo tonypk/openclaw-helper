@@ -1,32 +1,48 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
-import StatusCard from '../components/dashboard/StatusCard.vue'
-import QuickActions from '../components/dashboard/QuickActions.vue'
+import { ref, onMounted } from "vue";
+import { useI18n } from "vue-i18n";
+import StatusCard from "../components/dashboard/StatusCard.vue";
+import QuickActions from "../components/dashboard/QuickActions.vue";
+import { checkUpdate } from "../api/helper";
 
-const { t } = useI18n()
+const { t } = useI18n();
 
-const running = ref(true)
-const uptime = ref('2h 30m')
-const gateway = ref('ws://127.0.0.1:18789')
+const running = ref(true);
+const uptime = ref("2h 30m");
+const gateway = ref("ws://127.0.0.1:18789");
+const updateAvailable = ref(false);
+const updateVersion = ref("");
 
 const channels = ref([
-  { icon: '📱', name: 'Telegram', account: '@my_bot', online: true },
-  { icon: '💬', name: 'WhatsApp', account: '+86...', online: true },
-  { icon: '🎮', name: 'Discord', account: 'MyServer', online: false },
-])
+  { icon: "\u{1F4F1}", name: "Telegram", account: "@my_bot", online: true },
+  { icon: "\u{1F4AC}", name: "WhatsApp", account: "+86...", online: true },
+  { icon: "\u{1F3AE}", name: "Discord", account: "MyServer", online: false },
+]);
 
 function toggleService() {
-  running.value = !running.value
+  running.value = !running.value;
 }
 
-function handleAction(id: string) {
-  console.log('action:', id)
+async function handleAction(id: string) {
+  if (id === "update") {
+    try {
+      const info = await checkUpdate();
+      if (info.available) {
+        updateAvailable.value = true;
+        updateVersion.value = info.version ?? "";
+        alert(`${t("dashboard.updateFound")}: v${info.version}`);
+      } else {
+        alert(t("dashboard.noUpdate"));
+      }
+    } catch (e) {
+      console.error("update check failed:", e);
+    }
+  }
 }
 
 onMounted(() => {
   // Fetch real status from Go helper
-})
+});
 </script>
 
 <template>

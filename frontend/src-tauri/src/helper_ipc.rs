@@ -1,10 +1,8 @@
 use serde_json::{json, Value};
 use std::sync::OnceLock;
+use tauri_plugin_shell::ShellExt;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
-
-#[cfg(windows)]
-use tokio::net::windows::named_pipe::ClientOptions;
 #[cfg(not(windows))]
 use tokio::net::UnixStream;
 
@@ -12,21 +10,58 @@ static PIPE_PATH: OnceLock<String> = OnceLock::new();
 static RPC_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 /// Start the Go helper sidecar process.
-pub fn start_helper(app: tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    // In production, the Go binary is bundled as a sidecar
-    // For now, set the default pipe path
+pub fn start_helper(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    // Determine pipe/socket path
     #[cfg(windows)]
-    PIPE_PATH.set(r"\\.\pipe\openclaw-helper".to_string()).ok();
+    let pipe = r"\\.\pipe\openclaw-helper".to_string();
 
     #[cfg(not(windows))]
-    PIPE_PATH.set(format!("{}/openclaw-helper.sock", std::env::temp_dir().display())).ok();
+    let pipe = format!("{}/openclaw-helper.sock", std::env::temp_dir().display());
 
-    // TODO: Launch sidecar via tauri_plugin_shell::CommandBuilder
-    // let sidecar = app.shell().sidecar("och-helper").unwrap();
-    // sidecar.spawn().expect("failed to spawn helper");
+    // Remove stale socket file on Unix
+    #[cfg(not(windows))]
+    {
+        let _ = std::fs::remove_file(&pipe);
+    }
 
-    let _ = app; // suppress unused warning until sidecar is wired
+    PIPE_PATH.set(pipe.clone()).ok();
 
+    // Launch the Go helper sidecar
+    let sidecar = app.shell().sidecar("och-helper")
+        .map_err(|e| format!("failed to create sidecar command: {}", e))?
+        .args(["--pipe", &pipe]);
+
+    let (mut rx, _child) = sidecar.spawn()
+        .map_err(|e| format!("failed to spawn och-helper sidecar: {}", e))?;
+
+    // Log sidecar output in background
+    tauri::async_runtime::spawn(async move {
+        use tauri_plugin_shell::process::CommandEvent;
+        while let Some(event) = rx.recv().await {
+            match event {
+                CommandEvent::Stdout(line) => {
+                    log::info!("[och-helper] {}", String::from_utf8_lossy(&line));
+                }
+                CommandEvent::Stderr(line) => {
+                    log::warn!("[och-helper] {}", String::from_utf8_lossy(&line));
+                }
+                CommandEvent::Terminated(status) => {
+                    log::warn!("[och-helper] process terminated: {:?}", status);
+                    break;
+                }
+                CommandEvent::Error(err) => {
+                    log::error!("[och-helper] error: {}", err);
+                    break;
+                }
+                _ => {}
+            }
+        }
+    });
+
+    // Give sidecar a moment to start listening
+    std::thread::sleep(std::time::Duration::from_millis(500));
+
+    log::info!("Go helper sidecar started on {}", PIPE_PATH.get().unwrap());
     Ok(())
 }
 
@@ -51,6 +86,7 @@ pub async fn call(method: &str, params: Option<Value>) -> Result<Value, Box<dyn 
         let stream = UnixStream::connect(pipe_path).await?;
         let (reader, mut writer) = stream.into_split();
         writer.write_all(&request_bytes).await?;
+        writer.shutdown().await?;
         let mut buf_reader = BufReader::new(reader);
         let mut line = String::new();
         buf_reader.read_line(&mut line).await?;
@@ -59,10 +95,17 @@ pub async fn call(method: &str, params: Option<Value>) -> Result<Value, Box<dyn 
 
     #[cfg(windows)]
     let response = {
-        // Windows named pipe connection
         let pipe_path = PIPE_PATH.get().ok_or("helper not started")?;
-        // TODO: Implement Windows named pipe client
-        String::from("{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32603,\"message\":\"Windows pipe not yet implemented\"}}")
+        // Connect to Windows Named Pipe via tokio
+        let stream = tokio::net::windows::named_pipe::ClientOptions::new()
+            .open(pipe_path)?;
+        let (reader, mut writer) = tokio::io::split(stream);
+        writer.write_all(&request_bytes).await?;
+        writer.shutdown().await?;
+        let mut buf_reader = BufReader::new(reader);
+        let mut line = String::new();
+        buf_reader.read_line(&mut line).await?;
+        line
     };
 
     let resp: Value = serde_json::from_str(&response)?;

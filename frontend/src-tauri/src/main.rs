@@ -8,10 +8,14 @@ mod tray;
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![commands::helper_rpc])
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![
+            commands::helper_rpc,
+            commands::check_update,
+        ])
         .setup(|app| {
             // Launch Go helper sidecar
-            helper_ipc::start_helper(app.handle().clone())?;
+            helper_ipc::start_helper(app)?;
 
             // Set up system tray
             tray::create_tray(app)?;

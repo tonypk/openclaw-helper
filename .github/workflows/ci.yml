@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  go-test:
+    name: Go Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Run tests
+        run: go test -v -race ./...
+
+      - name: Go vet
+        run: go vet ./...
+
+      - name: Cross-compile for Windows
+        run: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o och-helper.exe ./cmd/helper
+
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type check and build
+        working-directory: frontend
+        run: npm run build
+
+  tauri-build:
+    name: Tauri Build (${{ matrix.os }})
+    needs: [go-test, frontend-build]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            go_os: windows
+            go_arch: amd64
+            binary_ext: .exe
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            go_os: darwin
+            go_arch: arm64
+            binary_ext: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Go helper sidecar
+        run: |
+          CGO_ENABLED=0 GOOS=${{ matrix.go_os }} GOARCH=${{ matrix.go_arch }} go build -ldflags "-X main.version=${{ github.sha }}" -o frontend/src-tauri/binaries/och-helper-${{ matrix.target }}${{ matrix.binary_ext }} ./cmd/helper
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: frontend
