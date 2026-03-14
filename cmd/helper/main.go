@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -12,7 +13,9 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/tonypk/openclaw-helper/internal/chat"
 	"github.com/tonypk/openclaw-helper/internal/checker"
+	"github.com/tonypk/openclaw-helper/internal/diagnosis"
 	"github.com/tonypk/openclaw-helper/internal/installer"
 	"github.com/tonypk/openclaw-helper/internal/ipc"
 	"github.com/tonypk/openclaw-helper/internal/types"
@@ -66,8 +69,18 @@ func runServer(sc *checker.SystemChecker, pipePath string) {
 		&installer.VerifyPhase{},
 	})
 
+	// Create diagnosis engine and chat handler
+	diagEngine := diagnosis.NewEngine()
+	playbooks := diagnosis.NewPlaybookRegistry()
+
+	llmProxy := chat.NewLLMProxy([]chat.LLMProvider{
+		{Name: "DeepSeek", BaseURL: "https://api.deepseek.com/v1", Model: "deepseek-chat"},
+	})
+	faqStore := chat.NewFAQStore()
+	chatHandler := chat.NewHandler(faqStore, llmProxy, diagEngine)
+
 	router := ipc.NewRouter()
-	registerHandlers(router, sc, orch)
+	registerHandlers(router, sc, orch, diagEngine, playbooks, chatHandler)
 
 	srv := ipc.NewServer(router)
 	if err := srv.Listen(pipePath); err != nil {
@@ -89,7 +102,7 @@ func runServer(sc *checker.SystemChecker, pipePath string) {
 	log.Println("Goodbye")
 }
 
-func registerHandlers(router *ipc.Router, sc *checker.SystemChecker, orch *installer.Orchestrator) {
+func registerHandlers(router *ipc.Router, sc *checker.SystemChecker, orch *installer.Orchestrator, diagEngine *diagnosis.Engine, playbooks *diagnosis.PlaybookRegistry, chatHandler *chat.Handler) {
 	// --- Helper ---
 	router.Register("helper.ping", func(_ json.RawMessage) (interface{}, *types.RPCError) {
 		return "pong", nil
@@ -187,5 +200,72 @@ func registerHandlers(router *ipc.Router, sc *checker.SystemChecker, orch *insta
 		eventBuf = eventBuf[:0]
 		eventMu.Unlock()
 		return events, nil
+	})
+
+	// --- Diagnosis ---
+	router.Register("diagnosis.run", func(_ json.RawMessage) (interface{}, *types.RPCError) {
+		diagCtx := diagnosis.Collect(sc)
+		report := diagEngine.Diagnose(diagCtx)
+		return report, nil
+	})
+
+	router.Register("diagnosis.runWithError", func(params json.RawMessage) (interface{}, *types.RPCError) {
+		var p struct {
+			ErrorLog string `json:"error_log"`
+		}
+		if err := json.Unmarshal(params, &p); err != nil {
+			return nil, &types.RPCError{Code: types.ErrCodeInvalidParams, Message: "invalid params"}
+		}
+		diagCtx := diagnosis.CollectWithError(sc, p.ErrorLog)
+		report := diagEngine.Diagnose(diagCtx)
+		return report, nil
+	})
+
+	router.Register("diagnosis.repair", func(params json.RawMessage) (interface{}, *types.RPCError) {
+		var p struct {
+			RepairID string `json:"repair_id"`
+		}
+		if err := json.Unmarshal(params, &p); err != nil || p.RepairID == "" {
+			return nil, &types.RPCError{Code: types.ErrCodeInvalidParams, Message: "params.repair_id required"}
+		}
+		result := playbooks.Run(context.Background(), p.RepairID)
+		return result, nil
+	})
+
+	// --- Chat ---
+	router.Register("chat.ask", func(params json.RawMessage) (interface{}, *types.RPCError) {
+		var p struct {
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(params, &p); err != nil || p.Message == "" {
+			return nil, &types.RPCError{Code: types.ErrCodeInvalidParams, Message: "params.message required"}
+		}
+		resp := chatHandler.Ask(p.Message)
+		return resp, nil
+	})
+
+	router.Register("chat.setContext", func(params json.RawMessage) (interface{}, *types.RPCError) {
+		var p struct {
+			Phase    string `json:"phase,omitempty"`
+			ErrorLog string `json:"error_log,omitempty"`
+			Language string `json:"language,omitempty"`
+		}
+		if err := json.Unmarshal(params, &p); err != nil {
+			return nil, &types.RPCError{Code: types.ErrCodeInvalidParams, Message: "invalid params"}
+		}
+		if p.Phase != "" {
+			chatHandler.SetPhase(p.Phase)
+		}
+		if p.ErrorLog != "" {
+			chatHandler.SetErrorLog(p.ErrorLog)
+		}
+		if p.Language != "" {
+			chatHandler.SetLanguage(p.Language)
+		}
+		return "ok", nil
+	})
+
+	router.Register("chat.suggestions", func(_ json.RawMessage) (interface{}, *types.RPCError) {
+		return chatHandler.GetSuggestions(), nil
 	})
 }
