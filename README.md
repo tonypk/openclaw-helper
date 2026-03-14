@@ -6,17 +6,18 @@
 
 ## English
 
-**One-click installer and manager for [OpenClaw](https://openclaw.ai/) on Windows.**
+**One-click installer for [OpenClaw](https://openclaw.ai/) on Windows.**
 
-OpenClaw Helper makes it super easy for non-technical users to install and manage [OpenClaw](https://github.com/openclaw/openclaw) (an open-source personal AI assistant) on Windows. No command line knowledge required.
+OpenClaw Helper is an **installation assistant** that helps non-technical users set up [OpenClaw](https://openclaw.ai/) (an open-source personal AI assistant) on Windows. Once installed, all features are managed through the official [OpenClaw Gateway Dashboard](http://localhost:18789). No command line knowledge required.
 
 ### Features
 
 - **One-Click Install** - Automatically sets up WSL2, Node.js, and OpenClaw
 - **System Detection** - Checks Windows version, RAM, disk space, virtualization, WSL2, Node.js
+- **Start/Stop Gateway** - Manage the OpenClaw Gateway service lifecycle
+- **Open Console** - Quick access to the official OpenClaw Dashboard (`http://localhost:18789`)
 - **Smart Diagnostics** - 15 built-in diagnostic rules with auto-repair playbooks
-- **AI Chat Assistant** - Get help anytime with FAQ matching, diagnostics, and LLM-powered answers
-- **Dashboard** - Monitor OpenClaw status, connected channels, and quick actions
+- **AI Chat Assistant** - Get help during installation with FAQ matching, diagnostics, and LLM-powered answers
 - **Auto Updates** - Built-in updater checks for new versions automatically
 - **Bilingual** - Full Chinese and English support
 
@@ -107,17 +108,18 @@ MIT
 
 ## 中文
 
-**Windows 上 [OpenClaw](https://openclaw.ai/) 的一键安装和管理工具。**
+**Windows 上 [OpenClaw](https://openclaw.ai/) 的一键安装助手。**
 
-OpenClaw 小助手让完全不懂技术的用户也能轻松在 Windows 上安装和管理 [OpenClaw](https://github.com/openclaw/openclaw)（开源 AI 私人助手）。无需命令行知识。
+OpenClaw 小助手是一个**安装助手**，帮助不懂技术的用户在 Windows 上轻松安装 [OpenClaw](https://openclaw.ai/)（开源 AI 私人助手）。安装完成后，所有功能通过官方 [OpenClaw 控制台](http://localhost:18789) 使用。无需命令行知识。
 
 ### 功能特性
 
 - **一键安装** - 自动配置 WSL2、Node.js 和 OpenClaw
 - **系统检测** - 检查 Windows 版本、内存、磁盘空间、虚拟化、WSL2、Node.js
+- **启动/停止** - 管理 OpenClaw Gateway 服务的启停
+- **打开控制台** - 快速跳转到官方 OpenClaw 控制台（`http://localhost:18789`）
 - **智能诊断** - 15 条内置诊断规则，配套自动修复方案
-- **AI 聊天助手** - 随时获取帮助，支持 FAQ 匹配、诊断分析和 LLM 智能回答
-- **管理仪表板** - 监控 OpenClaw 运行状态、已连接频道和快捷操作
+- **AI 聊天助手** - 安装过程中随时获取帮助，支持 FAQ 匹配、诊断分析和 LLM 智能回答
 - **自动更新** - 内置更新器自动检查新版本
 - **中英双语** - 完整的中文和英文界面支持
 
