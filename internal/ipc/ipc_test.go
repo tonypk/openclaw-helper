@@ -2,14 +2,23 @@ package ipc
 
 import (
 	"encoding/json"
-	"net"
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/tonypk/openclaw-helper/internal/types"
 )
+
+// testAddress returns a platform-appropriate IPC address for tests.
+func testAddress() string {
+	if runtime.GOOS == "windows" {
+		return fmt.Sprintf(`\\.\pipe\openclaw-test-%d`, os.Getpid())
+	}
+	return filepath.Join(os.TempDir(), fmt.Sprintf("openclaw-test-%d.sock", os.Getpid()))
+}
 
 func TestRouterDispatch_Ping(t *testing.T) {
 	router := NewRouter()
@@ -113,11 +122,13 @@ func TestServerIntegration(t *testing.T) {
 		return types.HelperInfo{Version: "test", GoVersion: "go1.22", OS: "test", Arch: "test"}, nil
 	})
 
-	sockPath := filepath.Join(os.TempDir(), "openclaw-test.sock")
-	os.Remove(sockPath)
+	addr := testAddress()
+	if runtime.GOOS != "windows" {
+		os.Remove(addr)
+	}
 
 	srv := NewServer(router)
-	if err := srv.Listen(sockPath); err != nil {
+	if err := srv.Listen(addr); err != nil {
 		t.Fatalf("listen: %v", err)
 	}
 	defer srv.Stop()
@@ -128,7 +139,7 @@ func TestServerIntegration(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Test ping
-	conn, err := net.Dial("unix", sockPath)
+	conn, err := dial(addr)
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
