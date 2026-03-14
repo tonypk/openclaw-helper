@@ -2,6 +2,8 @@
 
 [English](#english) | [中文](#中文)
 
+> **[>>> Download for Windows (.exe) <<<](https://github.com/tonypk/openclaw-helper/releases/latest)** | **[>>> Windows 下载 (.exe) <<<](https://github.com/tonypk/openclaw-helper/releases/latest)**
+
 ---
 
 ## English
@@ -9,6 +11,12 @@
 **One-click installer for [OpenClaw](https://openclaw.ai/) on Windows.**
 
 OpenClaw Helper is an **installation assistant** that helps non-technical users set up [OpenClaw](https://openclaw.ai/) (an open-source personal AI assistant) on Windows. Once installed, all features are managed through the official [OpenClaw Gateway Dashboard](http://localhost:18789). No command line knowledge required.
+
+### Download
+
+**[Download OpenClaw Helper (Windows .exe)](https://github.com/tonypk/openclaw-helper/releases/latest)** — Double-click to install, no command line needed.
+
+Also available: [macOS (.dmg)](https://github.com/tonypk/openclaw-helper/releases/latest)
 
 Join our [Telegram channel](https://t.me/openclaw_helper) for updates and support.
 
@@ -113,6 +121,12 @@ MIT
 **Windows 上 [OpenClaw](https://openclaw.ai/) 的一键安装助手。**
 
 OpenClaw 小助手是一个**安装助手**，帮助不懂技术的用户在 Windows 上轻松安装 [OpenClaw](https://openclaw.ai/)（开源 AI 私人助手）。安装完成后，所有功能通过官方 [OpenClaw 控制台](http://localhost:18789) 使用。无需命令行知识。
+
+### 下载安装
+
+**[下载 OpenClaw 小助手 (Windows .exe)](https://github.com/tonypk/openclaw-helper/releases/latest)** — 双击安装，无需命令行。
+
+也提供：[macOS (.dmg)](https://github.com/tonypk/openclaw-helper/releases/latest)
 
 加入我们的 [Telegram 频道](https://t.me/openclaw_helper) 获取更新和支持。
 
