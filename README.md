@@ -6,9 +6,9 @@
 
 ## English
 
-**One-click installer and manager for [OpenClaw](https://github.com/lobehub/lobe-chat) on Windows.**
+**One-click installer and manager for [OpenClaw](https://openclaw.ai/) on Windows.**
 
-OpenClaw Helper makes it super easy for non-technical users to install and manage OpenClaw (an open-source AI agent platform) on Windows. No command line knowledge required.
+OpenClaw Helper makes it super easy for non-technical users to install and manage [OpenClaw](https://github.com/openclaw/openclaw) (an open-source personal AI assistant) on Windows. No command line knowledge required.
 
 ### Features
 
@@ -107,9 +107,9 @@ MIT
 
 ## 中文
 
-**Windows 上 [OpenClaw](https://github.com/lobehub/lobe-chat) 的一键安装和管理工具。**
+**Windows 上 [OpenClaw](https://openclaw.ai/) 的一键安装和管理工具。**
 
-OpenClaw 小助手让完全不懂技术的用户也能轻松在 Windows 上安装和管理 OpenClaw（开源 AI 代理平台）。无需命令行知识。
+OpenClaw 小助手让完全不懂技术的用户也能轻松在 Windows 上安装和管理 [OpenClaw](https://github.com/openclaw/openclaw)（开源 AI 私人助手）。无需命令行知识。
 
 ### 功能特性
 
