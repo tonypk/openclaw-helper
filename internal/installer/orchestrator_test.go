@@ -268,13 +268,32 @@ func TestOrchestrator_DoubleStart(t *testing.T) {
 	slowExec := &mockExecutor{
 		phase: PhasePrecheck,
 		executeFunc: func(ctx context.Context, _ func(ProgressEvent)) (bool, error) {
-			time.Sleep(500 * time.Millisecond)
-			return false, nil
+			select {
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case <-time.After(5 * time.Second):
+				return false, nil
+			}
 		},
 	}
 	orch := NewOrchestratorWithState([]PhaseExecutor{slowExec}, state)
 	orch.Start()
-	defer orch.Cancel()
+	defer func() {
+		orch.Cancel()
+		// Wait for goroutine to finish
+		deadline := time.After(3 * time.Second)
+		for {
+			select {
+			case <-deadline:
+				return
+			default:
+			}
+			if !orch.Status().Running {
+				return
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+	}()
 
 	time.Sleep(50 * time.Millisecond)
 	err := orch.Start()
