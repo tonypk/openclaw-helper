@@ -10,6 +10,8 @@
 
 OpenClaw Helper is an **installation assistant** that helps non-technical users set up [OpenClaw](https://openclaw.ai/) (an open-source personal AI assistant) on Windows. Once installed, all features are managed through the official [OpenClaw Gateway Dashboard](http://localhost:18789). No command line knowledge required.
 
+Join our [Telegram channel](https://t.me/openclaw_helper) for updates and support.
+
 ### Features
 
 - **One-Click Install** - Automatically sets up WSL2, Node.js, and OpenClaw
@@ -111,6 +113,8 @@ MIT
 **Windows 上 [OpenClaw](https://openclaw.ai/) 的一键安装助手。**
 
 OpenClaw 小助手是一个**安装助手**，帮助不懂技术的用户在 Windows 上轻松安装 [OpenClaw](https://openclaw.ai/)（开源 AI 私人助手）。安装完成后，所有功能通过官方 [OpenClaw 控制台](http://localhost:18789) 使用。无需命令行知识。
+
+加入我们的 [Telegram 频道](https://t.me/openclaw_helper) 获取更新和支持。
 
 ### 功能特性
 
