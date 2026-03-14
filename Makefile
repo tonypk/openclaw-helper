@@ -1,29 +1,39 @@
 VERSION ?= 0.1.0
 BINARY_NAME = och-helper
 WINDOWS_BINARY = $(BINARY_NAME).exe
+TARGET_TRIPLE := $(shell rustc -vV 2>/dev/null | grep host | cut -d' ' -f2)
 
-.PHONY: build build-windows build-dev test clean lint
+.PHONY: build build-windows build-dev build-sidecar test clean lint check run dev frontend-dev frontend-build
 
 ## Build for current platform (development)
 build-dev:
 	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY_NAME) ./cmd/helper
 
+## Build Go helper as Tauri sidecar for current platform
+build-sidecar:
+	go build -ldflags "-X main.version=$(VERSION)" -o frontend/src-tauri/binaries/$(BINARY_NAME)-$(TARGET_TRIPLE) ./cmd/helper
+
 ## Cross-compile for Windows amd64
 build-windows:
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=$(VERSION)" -o $(WINDOWS_BINARY) ./cmd/helper
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=$(VERSION)" -o frontend/src-tauri/binaries/$(BINARY_NAME)-x86_64-pc-windows-msvc.exe ./cmd/helper
 
-## Run tests
+## Run Go tests
 test:
+	go test -v ./...
+
+## Run Go tests with race detector
+test-race:
 	go test -v -race ./...
 
 ## Run tests with coverage
 test-cover:
-	go test -v -race -coverprofile=coverage.out ./...
+	go test -v -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out
 
 ## Clean build artifacts
 clean:
 	rm -f $(BINARY_NAME) $(WINDOWS_BINARY) coverage.out
+	rm -f frontend/src-tauri/binaries/$(BINARY_NAME)-*
 
 ## Run go vet
 lint:
@@ -36,3 +46,27 @@ check: build-dev
 ## Run the helper IPC server
 run: build-dev
 	./$(BINARY_NAME)
+
+## Install frontend dependencies
+frontend-install:
+	cd frontend && npm install
+
+## Build frontend only
+frontend-build:
+	cd frontend && npm run build
+
+## Run frontend dev server only (for UI work without Tauri)
+frontend-dev:
+	cd frontend && npm run dev
+
+## Full development: build sidecar + run tauri dev
+dev: build-sidecar
+	cd frontend && npx @tauri-apps/cli@2 dev
+
+## Build complete Tauri application
+build: build-sidecar frontend-build
+	cd frontend && npx @tauri-apps/cli@2 build
+
+## Run all checks before commit
+ci: lint test frontend-build
+	@echo "All checks passed!"

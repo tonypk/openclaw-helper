@@ -96,11 +96,12 @@ export interface ChatResponse {
 }
 
 let rpcId = 0;
+let useMock = false;
 
 /**
  * Call a Go Helper RPC method.
  * In production, this goes through Tauri's invoke.
- * In dev, we mock or use a WebSocket bridge.
+ * In dev without Go helper, falls back to mock data.
  */
 async function call<T>(method: string, params?: unknown): Promise<T> {
   rpcId++;
@@ -111,18 +112,31 @@ async function call<T>(method: string, params?: unknown): Promise<T> {
     return invoke<T>("helper_rpc", { method, params: params ?? null });
   }
 
-  // Dev mode: direct HTTP bridge (or mock)
-  const resp = await fetch("http://localhost:19999/rpc", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: rpcId, method, params }),
-  });
-
-  const data: RPCResponse<T> = await resp.json();
-  if (data.error) {
-    throw new Error(`RPC ${method}: ${data.error.message}`);
+  // If we already know mock mode is needed, skip HTTP
+  if (useMock) {
+    const { mockCall } = await import("./mock");
+    return mockCall<T>(method, params);
   }
-  return data.result as T;
+
+  // Try HTTP bridge, fall back to mock
+  try {
+    const resp = await fetch("http://localhost:19999/rpc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: rpcId, method, params }),
+    });
+
+    const data: RPCResponse<T> = await resp.json();
+    if (data.error) {
+      throw new Error(`RPC ${method}: ${data.error.message}`);
+    }
+    return data.result as T;
+  } catch {
+    console.warn("[helper] HTTP bridge unavailable, switching to mock mode");
+    useMock = true;
+    const { mockCall } = await import("./mock");
+    return mockCall<T>(method, params);
+  }
 }
 
 // --- Helper ---

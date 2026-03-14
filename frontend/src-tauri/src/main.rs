@@ -17,8 +17,11 @@ fn main() {
             // Launch Go helper sidecar
             helper_ipc::start_helper(app)?;
 
-            // Set up system tray
+            // Set up system tray with menu
             tray::create_tray(app)?;
+
+            // Close button hides to tray instead of quitting
+            tray::setup_close_to_tray(app);
 
             Ok(())
         })

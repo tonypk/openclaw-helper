@@ -40,8 +40,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Build Go helper sidecar
+        shell: bash
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.go_os }}
+          GOARCH: ${{ matrix.go_arch }}
         run: |
-          CGO_ENABLED=0 GOOS=${{ matrix.go_os }} GOARCH=${{ matrix.go_arch }} go build -ldflags "-X main.version=${{ github.ref_name }}" -o frontend/src-tauri/binaries/och-helper-${{ matrix.target }}${{ matrix.binary_ext }} ./cmd/helper
+          go build -ldflags "-X main.version=${{ github.ref_name }}" -o "frontend/src-tauri/binaries/och-helper-${{ matrix.target }}${{ matrix.binary_ext }}" ./cmd/helper
 
       - name: Install frontend dependencies
         working-directory: frontend
