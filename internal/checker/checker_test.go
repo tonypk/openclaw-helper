@@ -1,6 +1,7 @@
 package checker
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/tonypk/openclaw-helper/internal/types"
@@ -20,7 +21,6 @@ func TestRunAll(t *testing.T) {
 	sc := New()
 	report := sc.RunAll()
 
-	// On non-Windows, all checks should be skipped
 	checks := []struct {
 		name   string
 		result types.CheckResult
@@ -38,16 +38,22 @@ func TestRunAll(t *testing.T) {
 		if tc.result.Name != tc.name {
 			t.Errorf("check %q: expected Name=%q, got %q", tc.name, tc.name, tc.result.Name)
 		}
-		// On macOS/Linux, all should be "skipped"
-		if tc.result.Status != types.StatusSkipped {
-			t.Logf("check %q: status=%s (expected skipped on non-Windows)", tc.name, tc.result.Status)
+		// Verify status is a valid value
+		switch tc.result.Status {
+		case types.StatusPass, types.StatusFail, types.StatusWarn, types.StatusSkipped:
+			// valid
+		default:
+			t.Errorf("check %q: unexpected status %q", tc.name, tc.result.Status)
 		}
 	}
 
-	// With all skipped (not failed), OverallReady should be true
-	if !report.OverallReady {
-		t.Error("expected OverallReady=true when no failures")
+	if runtime.GOOS != "windows" {
+		// On non-Windows, all checks should be skipped, so OverallReady is true
+		if !report.OverallReady {
+			t.Error("expected OverallReady=true when all checks skipped on non-Windows")
+		}
 	}
+	// On Windows CI, some checks may fail (no WSL, no Node), so we don't assert OverallReady
 }
 
 func TestRunSingle_Known(t *testing.T) {
