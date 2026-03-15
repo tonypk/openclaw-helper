@@ -31,6 +31,7 @@ function handleRetry() {
 }
 
 function goSuccess() {
+  localStorage.setItem('openclaw_installed', 'true')
   router.push('/success')
 }
 </script>

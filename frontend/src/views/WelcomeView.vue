@@ -2,6 +2,7 @@
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '../stores/settings'
+import { openInBrowser } from '../api/helper'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -9,6 +10,10 @@ const settings = useSettingsStore()
 
 function startInstall() {
   router.push('/check')
+}
+
+function learnMore() {
+  openInBrowser('https://openclaw.ai/')
 }
 </script>
 
@@ -27,7 +32,7 @@ function startInstall() {
         ⚙️ {{ t('welcome.customInstall') }}
       </button>
       <span class="welcome__divider">|</span>
-      <button class="btn btn--text">
+      <button class="btn btn--text" @click="learnMore">
         📖 {{ t('welcome.learnMore') }}
       </button>
     </div>

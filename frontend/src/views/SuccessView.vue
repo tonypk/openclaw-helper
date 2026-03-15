@@ -53,7 +53,7 @@ function goToDashboard() {
     </div>
 
     <button class="btn btn--text" @click="goToDashboard" style="margin-top: 16px;">
-      Go to Dashboard →
+      {{ t('success.goToDashboard') }}
     </button>
 
     <p class="success-tray">{{ t('success.trayHint') }}</p>

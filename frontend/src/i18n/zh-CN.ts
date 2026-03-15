@@ -43,6 +43,7 @@ export default {
   },
   config: {
     title: "基础配置",
+    subtitle: "配置 AI 模型的 API Key（可跳过）",
     step: "步骤",
     apiKey: "API Key",
     apiKeyPlaceholder: "sk-xxxx...",
@@ -66,6 +67,7 @@ export default {
     tutorial: "新手教程",
     moreConfig: "继续配置更多功能",
     trayHint: "OpenClaw 已最小化到系统托盘运行",
+    goToDashboard: "进入管理面板 →",
   },
   dashboard: {
     title: "OpenClaw 小助手",

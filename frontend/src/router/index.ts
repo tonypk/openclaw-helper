@@ -26,14 +26,25 @@ const router = createRouter({
     {
       path: '/success',
       name: 'success',
+      meta: { requiresInstall: true },
       component: () => import('../views/SuccessView.vue'),
     },
     {
       path: '/dashboard',
       name: 'dashboard',
+      meta: { requiresInstall: true },
       component: () => import('../views/DashboardView.vue'),
     },
   ],
+})
+
+router.beforeEach((to) => {
+  if (to.meta.requiresInstall) {
+    const installed = localStorage.getItem('openclaw_installed') === 'true'
+    if (!installed) {
+      return { name: 'welcome' }
+    }
+  }
 })
 
 export default router

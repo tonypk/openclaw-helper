@@ -6,19 +6,16 @@ import { useI18n } from 'vue-i18n'
 const router = useRouter()
 const { t } = useI18n()
 
-const step = ref(1)
 const apiKey = ref('')
 const showTip = ref(false)
 
 function next() {
-  if (step.value < 3) {
-    step.value++
-  } else {
-    router.push('/success')
-  }
+  localStorage.setItem('openclaw_installed', 'true')
+  router.push('/success')
 }
 
 function skip() {
+  localStorage.setItem('openclaw_installed', 'true')
   router.push('/success')
 }
 </script>
@@ -26,9 +23,9 @@ function skip() {
 <template>
   <div class="config-view">
     <h2>⚙️ {{ t('config.title') }}</h2>
-    <p class="config-step">{{ t('config.step') }} {{ step }}/3: AI 模型设置</p>
+    <p class="config-step">{{ t('config.subtitle') }}</p>
 
-    <div v-if="step === 1" class="config-section">
+    <div class="config-section">
       <label class="config-label">🔑 {{ t('config.apiKey') }}</label>
       <input
         v-model="apiKey"

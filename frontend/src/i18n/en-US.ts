@@ -43,6 +43,7 @@ export default {
   },
   config: {
     title: "Configuration",
+    subtitle: "Configure your AI API Key (optional)",
     step: "Step",
     apiKey: "API Key",
     apiKeyPlaceholder: "sk-xxxx...",
@@ -67,6 +68,7 @@ export default {
     tutorial: "Beginner Tutorial",
     moreConfig: "Configure More Features",
     trayHint: "OpenClaw is running in the system tray",
+    goToDashboard: "Go to Dashboard →",
   },
   dashboard: {
     title: "OpenClaw Helper",

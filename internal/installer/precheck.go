@@ -65,6 +65,15 @@ func (p *PrecheckExecutor) Execute(_ context.Context, progress func(ProgressEven
 		})
 	}
 
+	// Warn if WSL needs installing but we don't have admin privileges
+	if report.WSL.Status != types.StatusPass && !IsAdmin() {
+		progress(ProgressEvent{
+			Phase: PhasePrecheck, Status: PhaseRunning,
+			Message:   "WSL2 installation requires administrator privileges — a UAC prompt will appear",
+			Timestamp: time.Now(),
+		})
+	}
+
 	progress(ProgressEvent{
 		Phase: PhasePrecheck, Status: PhaseCompleted,
 		Message: "System checks passed", Progress: 100,
