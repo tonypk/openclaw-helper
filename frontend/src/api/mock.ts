@@ -9,6 +9,8 @@ import type {
   DiagnosticReport,
   ChatResponse,
   RepairResult,
+  CrashReport,
+  ReportResult,
 } from "./helper";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -151,6 +153,22 @@ const mockMethods: Record<string, (params?: unknown) => unknown> = {
   "chat.ask": () => mockChatResponse,
   "chat.setContext": () => "ok",
   "chat.suggestions": () => mockChatResponse.suggested,
+  "report.collect": () =>
+    ({
+      title: "Installation failed - wsl",
+      description: "",
+      app_version: "0.1.0-mock",
+      system_summary:
+        "OS: Windows 11 23H2 (pass)\nMemory: 16 GB\nDisk: 50 GB available\nWSL: Not installed (fail)\nNode: Not found (fail)",
+      error_phase: "wsl",
+      error_message: "WSL installation timed out",
+    }) as CrashReport,
+  "report.submit": () =>
+    ({
+      github_url:
+        "https://github.com/tonypk/openclaw-helper/issues/new?title=test&labels=crash-report&body=test",
+      telegram_sent: false,
+    }) as ReportResult,
 };
 
 export async function mockCall<T>(

@@ -95,6 +95,18 @@ export default {
     repair: "Auto Fix",
     thinking: "Thinking...",
   },
+  report: {
+    title: "Report Issue",
+    titleLabel: "Issue Title",
+    descLabel: "Description (optional)",
+    descPlaceholder: "Describe what happened...",
+    diagInfo: "Diagnostic Info",
+    submit: "Submit Report",
+    submitting: "Submitting...",
+    success: "Report submitted, thank you!",
+    telegramSent: "Also sent to Telegram channel",
+    githubOpened: "Opening GitHub...",
+  },
   common: {
     cancel: "Cancel",
     retry: "Retry",

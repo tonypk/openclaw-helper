@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ReportDialog from './ReportDialog.vue'
 
 defineProps<{
   message: string
@@ -11,6 +13,7 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const showReport = ref(false)
 </script>
 
 <template>
@@ -21,11 +24,21 @@ const { t } = useI18n()
       <div class="error-card__msg">{{ message }}</div>
     </div>
     <div class="error-card__actions">
+      <button class="btn btn--secondary" @click="showReport = true">
+        📋 {{ t('report.title') }}
+      </button>
       <button class="btn btn--primary" @click="$emit('retry')">
         🔄 {{ t('common.retry') }}
       </button>
     </div>
   </div>
+
+  <ReportDialog
+    v-if="showReport"
+    :error-phase="phase"
+    :error-message="message"
+    @close="showReport = false"
+  />
 </template>
 
 <style scoped>

@@ -93,6 +93,18 @@ export default {
     repair: "一键修复",
     thinking: "思考中...",
   },
+  report: {
+    title: "反馈问题",
+    titleLabel: "问题标题",
+    descLabel: "问题描述（可选）",
+    descPlaceholder: "请描述你遇到的问题...",
+    diagInfo: "诊断信息",
+    submit: "提交反馈",
+    submitting: "正在提交...",
+    success: "反馈已提交，感谢！",
+    telegramSent: "已同时发送到 Telegram 频道",
+    githubOpened: "正在打开 GitHub...",
+  },
   common: {
     cancel: "取消",
     retry: "重试",

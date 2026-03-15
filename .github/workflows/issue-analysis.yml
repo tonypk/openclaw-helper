@@ -1,0 +1,84 @@
+name: AI Issue Analysis
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  analyze:
+    if: contains(github.event.issue.labels.*.name, 'crash-report')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Analyze issue with Claude
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          # Skip if no API key configured
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "ANTHROPIC_API_KEY not configured, skipping analysis"
+            exit 0
+          fi
+
+          # Build the prompt
+          PROMPT=$(cat <<'PROMPT_EOF'
+          You are a technical support assistant for OpenClaw Helper, a desktop application that helps users install OpenClaw (an AI assistant platform) on Windows.
+
+          The app handles: WSL2 installation, Ubuntu configuration, Node.js setup, OpenClaw npm package installation, and system verification.
+
+          Analyze the following crash report and provide:
+          1. **Root Cause Analysis**: What likely went wrong
+          2. **Suggested Fix**: Step-by-step instructions the user can try
+          3. **For Developers**: Any code-level insights if applicable
+
+          Keep the response concise and user-friendly. Use Chinese (simplified) as the primary language since most users are Chinese speakers, but include English translations for technical terms.
+
+          Crash Report:
+          PROMPT_EOF
+          )
+
+          # Prepare the API request
+          FULL_PROMPT="${PROMPT}
+
+          Title: ${ISSUE_TITLE}
+
+          ${ISSUE_BODY}"
+
+          # Call Claude API
+          RESPONSE=$(curl -s -X POST https://api.anthropic.com/v1/messages \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: ${ANTHROPIC_API_KEY}" \
+            -H "anthropic-version: 2023-06-01" \
+            -d "$(jq -n \
+              --arg prompt "$FULL_PROMPT" \
+              '{
+                model: "claude-sonnet-4-20250514",
+                max_tokens: 2000,
+                messages: [{role: "user", content: $prompt}]
+              }')")
+
+          # Extract the text response
+          ANALYSIS=$(echo "$RESPONSE" | jq -r '.content[0].text // "Analysis failed - please check the API key configuration."')
+
+          # Post comment on the issue
+          COMMENT_BODY=$(cat <<EOF
+          ## 🤖 AI Analysis
+
+          ${ANALYSIS}
+
+          ---
+          *This analysis was generated automatically by Claude. It may not be 100% accurate. Please verify the suggestions before applying them.*
+          EOF
+          )
+
+          gh issue comment "$ISSUE_NUMBER" \
+            --repo "${{ github.repository }}" \
+            --body "$COMMENT_BODY"

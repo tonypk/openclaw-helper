@@ -174,6 +174,25 @@ export const chatSetContext = (ctx: {
 export const chatSuggestions = () =>
   call<{ text: string; text_en: string }[]>("chat.suggestions");
 
+// --- Report ---
+export interface CrashReport {
+  title: string;
+  description: string;
+  app_version: string;
+  system_summary: string;
+  error_phase: string;
+  error_message: string;
+}
+
+export interface ReportResult {
+  github_url: string;
+  telegram_sent: boolean;
+}
+
+export const reportCollect = () => call<CrashReport>("report.collect");
+export const reportSubmit = (title: string, description: string) =>
+  call<ReportResult>("report.submit", { title, description });
+
 // --- Update ---
 export interface UpdateInfo {
   available: boolean;

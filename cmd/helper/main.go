@@ -18,6 +18,7 @@ import (
 	"github.com/tonypk/openclaw-helper/internal/diagnosis"
 	"github.com/tonypk/openclaw-helper/internal/installer"
 	"github.com/tonypk/openclaw-helper/internal/ipc"
+	"github.com/tonypk/openclaw-helper/internal/report"
 	"github.com/tonypk/openclaw-helper/internal/types"
 )
 
@@ -267,5 +268,45 @@ func registerHandlers(router *ipc.Router, sc *checker.SystemChecker, orch *insta
 
 	router.Register("chat.suggestions", func(_ json.RawMessage) (interface{}, *types.RPCError) {
 		return chatHandler.GetSuggestions(), nil
+	})
+
+	// --- Report ---
+	router.Register("report.collect", func(_ json.RawMessage) (interface{}, *types.RPCError) {
+		r := report.Collect(version, sc, orch, diagEngine)
+		return r, nil
+	})
+
+	router.Register("report.submit", func(params json.RawMessage) (interface{}, *types.RPCError) {
+		var p struct {
+			Title       string `json:"title"`
+			Description string `json:"description"`
+		}
+		if err := json.Unmarshal(params, &p); err != nil {
+			return nil, &types.RPCError{Code: types.ErrCodeInvalidParams, Message: "invalid params"}
+		}
+		if p.Title == "" {
+			p.Title = "Installation issue"
+		}
+
+		r := report.Collect(version, sc, orch, diagEngine)
+		r.Title = p.Title
+		r.Description = p.Description
+
+		githubURL := report.BuildIssueURL(r)
+
+		// Send to Telegram asynchronously
+		telegramSent := false
+		go func() {
+			if err := report.SendToTelegram(context.Background(), r); err != nil {
+				log.Printf("[report] telegram send failed: %v", err)
+			}
+		}()
+		// We report telegram_sent as the config status (whether it was attempted)
+		telegramSent = report.TelegramConfigured()
+
+		return report.ReportResult{
+			GitHubURL:    githubURL,
+			TelegramSent: telegramSent,
+		}, nil
 	})
 }
