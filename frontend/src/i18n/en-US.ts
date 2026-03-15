@@ -40,6 +40,8 @@ export default {
     eta: "Estimated time remaining",
     minutes: "minutes",
     chatHint: "Having issues? Ask me!",
+    stuckHint:
+      "Installation seems stuck — no progress for 30 seconds. Please report the issue or retry.",
   },
   config: {
     title: "Configuration",

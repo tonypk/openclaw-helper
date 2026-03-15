@@ -15,7 +15,13 @@ const chat = useChatStore()
 
 const isDone = computed(() => install.status?.current_phase === 'done')
 const isError = computed(() => install.status?.current_phase === 'error')
+const isStuck = computed(() => install.stuck || !!install.startError)
 const overall = computed(() => install.status?.overall ?? 0)
+
+const stuckMessage = computed(() => {
+  if (install.startError) return install.startError
+  return t('install.stuckHint')
+})
 
 onMounted(async () => {
   await install.start()
@@ -57,6 +63,13 @@ function goSuccess() {
       v-if="isError && install.status"
       :message="install.status.error_message || 'Unknown error'"
       :phase="install.status.error_phase"
+      @retry="handleRetry"
+    />
+
+    <ErrorCard
+      v-else-if="isStuck"
+      :message="stuckMessage"
+      :phase="install.status?.current_phase"
       @retry="handleRetry"
     />
 

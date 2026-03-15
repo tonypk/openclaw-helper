@@ -40,6 +40,8 @@ export default {
     eta: "预计剩余时间",
     minutes: "分钟",
     chatHint: "安装遇到问题？点我咨询",
+    stuckHint:
+      "安装似乎卡住了，已超过30秒没有进展。请点击「反馈问题」提交报告，或重试。",
   },
   config: {
     title: "基础配置",
