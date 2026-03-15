@@ -46,7 +46,7 @@ jobs:
           GOOS: ${{ matrix.go_os }}
           GOARCH: ${{ matrix.go_arch }}
         run: |
-          go build -ldflags "-X main.version=${{ github.ref_name }}" -o "frontend/src-tauri/binaries/och-helper-${{ matrix.target }}${{ matrix.binary_ext }}" ./cmd/helper
+          go build -ldflags "-X main.version=${{ github.ref_name }} -X github.com/tonypk/openclaw-helper/internal/report.telegramBotToken=${{ secrets.TELEGRAM_BOT_TOKEN }} -X github.com/tonypk/openclaw-helper/internal/report.telegramChatID=${{ secrets.TELEGRAM_CHAT_ID }}" -o "frontend/src-tauri/binaries/och-helper-${{ matrix.target }}${{ matrix.binary_ext }}" ./cmd/helper
 
       - name: Install frontend dependencies
         working-directory: frontend

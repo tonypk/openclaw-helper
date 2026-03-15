@@ -2,20 +2,29 @@ VERSION ?= 0.1.0
 BINARY_NAME = och-helper
 WINDOWS_BINARY = $(BINARY_NAME).exe
 TARGET_TRIPLE := $(shell rustc -vV 2>/dev/null | grep host | cut -d' ' -f2)
+TELEGRAM_BOT_TOKEN ?=
+TELEGRAM_CHAT_ID ?=
+LDFLAGS = -X main.version=$(VERSION)
+ifneq ($(TELEGRAM_BOT_TOKEN),)
+LDFLAGS += -X github.com/tonypk/openclaw-helper/internal/report.telegramBotToken=$(TELEGRAM_BOT_TOKEN)
+endif
+ifneq ($(TELEGRAM_CHAT_ID),)
+LDFLAGS += -X github.com/tonypk/openclaw-helper/internal/report.telegramChatID=$(TELEGRAM_CHAT_ID)
+endif
 
 .PHONY: build build-windows build-dev build-sidecar test clean lint check run dev frontend-dev frontend-build
 
 ## Build for current platform (development)
 build-dev:
-	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY_NAME) ./cmd/helper
+	go build -ldflags "$(LDFLAGS)" -o $(BINARY_NAME) ./cmd/helper
 
 ## Build Go helper as Tauri sidecar for current platform
 build-sidecar:
-	go build -ldflags "-X main.version=$(VERSION)" -o frontend/src-tauri/binaries/$(BINARY_NAME)-$(TARGET_TRIPLE) ./cmd/helper
+	go build -ldflags "$(LDFLAGS)" -o frontend/src-tauri/binaries/$(BINARY_NAME)-$(TARGET_TRIPLE) ./cmd/helper
 
 ## Cross-compile for Windows amd64
 build-windows:
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=$(VERSION)" -o frontend/src-tauri/binaries/$(BINARY_NAME)-x86_64-pc-windows-msvc.exe ./cmd/helper
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o frontend/src-tauri/binaries/$(BINARY_NAME)-x86_64-pc-windows-msvc.exe ./cmd/helper
 
 ## Run Go tests
 test:
