@@ -6,13 +6,17 @@ import { openInBrowser, OPENCLAW_CONSOLE_URL } from '../api/helper'
 const router = useRouter()
 const { t } = useI18n()
 
+const TUTORIAL_URL = 'https://openclaw.ai/docs'
+
 const actions = [
   { icon: '📖', labelKey: 'success.tutorial', id: 'tutorial' },
   { icon: '🔧', labelKey: 'success.moreConfig', id: 'config' },
 ]
 
 function handleAction(id: string) {
-  if (id === 'config') {
+  if (id === 'tutorial') {
+    openInBrowser(TUTORIAL_URL)
+  } else if (id === 'config') {
     router.push('/config')
   }
 }

@@ -82,6 +82,8 @@ export default {
     viewLogs: "View Logs",
     checkUpdate: "Check Update",
     reinstall: "Reinstall / Repair",
+    notRunningHint:
+      "OpenClaw is not running. Please start it first before opening the console.",
     updateFound: "New version available",
     noUpdate: "Already up to date",
   },

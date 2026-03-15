@@ -81,6 +81,7 @@ export default {
     viewLogs: "查看日志",
     checkUpdate: "检查更新",
     reinstall: "重新安装 / 修复",
+    notRunningHint: "OpenClaw 尚未运行，请先启动后再打开控制台。",
     updateFound: "发现新版本",
     noUpdate: "已是最新版本",
   },

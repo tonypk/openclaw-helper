@@ -18,6 +18,10 @@ function toggleService() {
 }
 
 function openConsole() {
+  if (!running.value) {
+    alert(t("dashboard.notRunningHint"));
+    return;
+  }
   openInBrowser(OPENCLAW_CONSOLE_URL);
 }
 
