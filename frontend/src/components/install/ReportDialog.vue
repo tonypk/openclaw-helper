@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { reportCollect, reportSubmit, openInBrowser } from '../../api/helper'
-import type { ReportResult } from '../../api/helper'
 
 const props = defineProps<{
   errorPhase?: string
@@ -21,7 +20,9 @@ const diagInfo = ref('')
 const loading = ref(false)
 const collecting = ref(true)
 const submitted = ref(false)
-const result = ref<ReportResult | null>(null)
+const telegramSent = ref(false)
+
+const REPO = 'tonypk/openclaw-helper'
 
 onMounted(async () => {
   // Pre-fill title
@@ -31,32 +32,85 @@ onMounted(async () => {
     title.value = 'Installation issue'
   }
 
-  // Collect diagnostic info
+  // Try to collect diagnostic info from Go backend
   try {
     const report = await reportCollect()
     diagInfo.value = report.system_summary || ''
   } catch {
-    diagInfo.value = 'Failed to collect diagnostic info'
+    // Backend unavailable — build basic info client-side
+    diagInfo.value = buildClientDiagInfo()
   } finally {
     collecting.value = false
   }
 })
+
+function buildClientDiagInfo(): string {
+  const lines = [
+    `Phase: ${props.errorPhase || 'unknown'}`,
+    `Error: ${props.errorMessage || 'unknown'}`,
+    `UserAgent: ${navigator.userAgent}`,
+    `Time: ${new Date().toISOString()}`,
+    `Note: Go helper sidecar was unreachable`,
+  ]
+  return lines.join('\n')
+}
+
+function buildGitHubURL(issueTitle: string, body: string): string {
+  const params = new URLSearchParams({
+    title: issueTitle,
+    labels: 'crash-report',
+    body: body,
+  })
+  let url = `https://github.com/${REPO}/issues/new?${params.toString()}`
+  // Truncate if URL too long
+  if (url.length > 8000) {
+    const truncBody = body.substring(0, 2000) + '\n\n---\n*Report truncated due to URL length limit.*'
+    const truncParams = new URLSearchParams({
+      title: issueTitle,
+      labels: 'crash-report',
+      body: truncBody,
+    })
+    url = `https://github.com/${REPO}/issues/new?${truncParams.toString()}`
+  }
+  return url
+}
+
+function buildIssueBody(): string {
+  const lines = [
+    props.errorMessage ? `${description.value}\n` : '',
+    '## Error',
+    `- **Phase**: \`${props.errorPhase || 'unknown'}\``,
+    `- **Message**: ${props.errorMessage || 'N/A'}`,
+    '',
+    '## Diagnostic Info',
+    '```',
+    diagInfo.value,
+    '```',
+    '',
+    `*Reported at ${new Date().toISOString()}*`,
+  ]
+  return lines.filter(Boolean).join('\n')
+}
 
 async function handleSubmit() {
   if (loading.value) return
   loading.value = true
 
   try {
+    // Try Go backend first
     const res = await reportSubmit(title.value, description.value)
-    result.value = res
+    telegramSent.value = res.telegram_sent
     submitted.value = true
-
-    // Open GitHub issue page in browser
     if (res.github_url) {
       await openInBrowser(res.github_url)
     }
-  } catch (err) {
-    console.error('Report submit failed:', err)
+  } catch {
+    // Backend unavailable — build URL client-side and open directly
+    const body = buildIssueBody()
+    const url = buildGitHubURL(title.value, body)
+    await openInBrowser(url)
+    telegramSent.value = false
+    submitted.value = true
   } finally {
     loading.value = false
   }
@@ -67,17 +121,16 @@ async function handleSubmit() {
   <div class="report-overlay" @click.self="emit('close')">
     <div class="report-dialog">
       <div class="report-dialog__header">
-        <h3>📋 {{ t('report.title') }}</h3>
-        <button class="report-dialog__close" @click="emit('close')">✕</button>
+        <h3>{{ t('report.title') }}</h3>
+        <button class="report-dialog__close" @click="emit('close')">&#x2715;</button>
       </div>
 
       <!-- Success state -->
       <div v-if="submitted" class="report-dialog__body">
         <div class="report-success">
-          <div class="report-success__icon">✅</div>
           <div class="report-success__text">{{ t('report.success') }}</div>
           <div class="report-success__hint">{{ t('report.githubOpened') }}</div>
-          <div v-if="result?.telegram_sent" class="report-success__telegram">
+          <div v-if="telegramSent" class="report-success__telegram">
             {{ t('report.telegramSent') }}
           </div>
         </div>
@@ -271,11 +324,6 @@ async function handleSubmit() {
 .report-success {
   text-align: center;
   padding: 20px 0;
-}
-
-.report-success__icon {
-  font-size: 48px;
-  margin-bottom: 12px;
 }
 
 .report-success__text {
