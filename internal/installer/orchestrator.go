@@ -209,6 +209,26 @@ func (o *Orchestrator) Reset() error {
 
 func (o *Orchestrator) run(ctx context.Context, startPhase Phase) {
 	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[installer] PANIC in installation goroutine: %v", r)
+			o.mu.Lock()
+			o.state.CurrentPhase = PhaseError
+			o.state.PhaseResults[startPhase] = PhaseFailed
+			o.state.ErrorPhase = startPhase
+			o.state.ErrorMessage = fmt.Sprintf("internal error: %v", r)
+			o.state.Save()
+			o.running = false
+			o.mu.Unlock()
+
+			o.emit(ProgressEvent{
+				Phase:   startPhase,
+				Status:  PhaseFailed,
+				Message: fmt.Sprintf("Internal error: %v", r),
+				Overall: o.calculateOverall(),
+			})
+			return
+		}
+
 		o.mu.Lock()
 		o.running = false
 		o.mu.Unlock()

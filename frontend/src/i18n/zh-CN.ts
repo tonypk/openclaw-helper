@@ -42,6 +42,7 @@ export default {
     chatHint: "安装遇到问题？点我咨询",
     stuckHint:
       "安装似乎卡住了，已超过30秒没有进展。请点击「反馈问题」提交报告，或重试。",
+    backendError: "后台服务连接失败",
   },
   config: {
     title: "基础配置",
@@ -104,8 +105,8 @@ export default {
     submit: "提交反馈",
     submitting: "正在提交...",
     success: "反馈已提交，感谢！",
-    telegramSent: "已同时发送到 Telegram 频道",
-    githubOpened: "正在打开 GitHub...",
+    successHint: "我们已收到你的反馈，会尽快处理。",
+    submitFailed: "提交失败，请稍后重试",
   },
   common: {
     cancel: "取消",

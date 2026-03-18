@@ -20,6 +20,7 @@ const overall = computed(() => install.status?.overall ?? 0)
 
 const stuckMessage = computed(() => {
   if (install.startError) return install.startError
+  if (install.backendError) return t('install.backendError') + ': ' + install.backendError
   return t('install.stuckHint')
 })
 
@@ -33,7 +34,13 @@ onUnmounted(() => {
 })
 
 function handleRetry() {
-  install.retry()
+  // If stuck (not in error state), do a full reset+start instead of just retry
+  const phase = install.status?.current_phase
+  if (phase === 'idle' || phase === 'cancelled' || install.backendError) {
+    install.resetAndStart()
+  } else {
+    install.retry()
+  }
 }
 
 function goSuccess() {

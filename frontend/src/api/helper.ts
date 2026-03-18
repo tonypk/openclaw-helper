@@ -185,8 +185,10 @@ export interface CrashReport {
 }
 
 export interface ReportResult {
-  github_url: string;
+  submitted: boolean;
   telegram_sent: boolean;
+  error_message?: string;
+  fallback_url?: string;
 }
 
 export const reportCollect = () => call<CrashReport>("report.collect");

@@ -16,10 +16,13 @@ export const useInstallStore = defineStore("install", () => {
   const polling = ref(false);
   const stuck = ref(false);
   const startError = ref("");
+  const backendError = ref("");
   let pollTimer: ReturnType<typeof setInterval> | null = null;
   let lastEventCount = 0;
   let stuckTicks = 0;
+  let consecutivePollFailures = 0;
   const STUCK_THRESHOLD = 30; // seconds with no progress
+  const POLL_FAILURE_THRESHOLD = 5; // consecutive failures before declaring backend dead
 
   async function start() {
     stuck.value = false;
@@ -74,10 +77,14 @@ export const useInstallStore = defineStore("install", () => {
     polling.value = true;
     lastEventCount = events.value.length;
     stuckTicks = 0;
+    consecutivePollFailures = 0;
+    backendError.value = "";
     pollTimer = setInterval(async () => {
       try {
         await fetchStatus();
         await fetchEvents();
+        consecutivePollFailures = 0;
+        backendError.value = "";
 
         // Stuck detection: no new events for STUCK_THRESHOLD seconds
         if (events.value.length > lastEventCount) {
@@ -98,8 +105,14 @@ export const useInstallStore = defineStore("install", () => {
             stopPolling();
           }
         }
-      } catch {
-        // Ignore polling errors
+      } catch (e) {
+        consecutivePollFailures++;
+        if (consecutivePollFailures >= POLL_FAILURE_THRESHOLD) {
+          backendError.value =
+            e instanceof Error ? e.message : "Backend unreachable";
+          stuck.value = true;
+          stopPolling();
+        }
       }
     }, 1000);
   }
@@ -112,16 +125,33 @@ export const useInstallStore = defineStore("install", () => {
     polling.value = false;
   }
 
+  /** Reset and restart installation (for stuck/idle state). */
+  async function resetAndStart() {
+    stuck.value = false;
+    startError.value = "";
+    backendError.value = "";
+    try {
+      await installReset();
+    } catch {
+      // Reset may fail if backend is down, continue anyway
+    }
+    events.value = [];
+    status.value = null;
+    await start();
+  }
+
   return {
     status,
     events,
     polling,
     stuck,
     startError,
+    backendError,
     start,
     retry,
     cancel,
     reset,
+    resetAndStart,
     fetchStatus,
     startPolling,
     stopPolling,

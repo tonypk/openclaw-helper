@@ -292,21 +292,26 @@ func registerHandlers(router *ipc.Router, sc *checker.SystemChecker, orch *insta
 		r.Title = p.Title
 		r.Description = p.Description
 
-		githubURL := report.BuildIssueURL(r)
+		result := report.ReportResult{}
 
-		// Send to Telegram asynchronously
-		telegramSent := false
-		go func() {
+		// Primary: send to Telegram channel (synchronous)
+		if report.TelegramConfigured() {
 			if err := report.SendToTelegram(context.Background(), r); err != nil {
 				log.Printf("[report] telegram send failed: %v", err)
+				result.ErrorMessage = err.Error()
+				// Fallback: provide GitHub URL for manual submission
+				result.FallbackURL = report.BuildIssueURL(r)
+			} else {
+				result.Submitted = true
+				result.TelegramSent = true
+				log.Printf("[report] feedback sent to telegram")
 			}
-		}()
-		// We report telegram_sent as the config status (whether it was attempted)
-		telegramSent = report.TelegramConfigured()
+		} else {
+			// Telegram not configured, fallback to GitHub URL
+			log.Printf("[report] telegram not configured, using github URL fallback")
+			result.FallbackURL = report.BuildIssueURL(r)
+		}
 
-		return report.ReportResult{
-			GitHubURL:    githubURL,
-			TelegramSent: telegramSent,
-		}, nil
+		return result, nil
 	})
 }

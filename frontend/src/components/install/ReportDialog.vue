@@ -20,7 +20,7 @@ const diagInfo = ref('')
 const loading = ref(false)
 const collecting = ref(true)
 const submitted = ref(false)
-const telegramSent = ref(false)
+const submitError = ref('')
 
 const REPO = 'tonypk/openclaw-helper'
 
@@ -95,21 +95,24 @@ function buildIssueBody(): string {
 async function handleSubmit() {
   if (loading.value) return
   loading.value = true
+  submitError.value = ''
 
   try {
-    // Try Go backend first
     const res = await reportSubmit(title.value, description.value)
-    telegramSent.value = res.telegram_sent
-    submitted.value = true
-    if (res.github_url) {
-      await openInBrowser(res.github_url)
+    if (res.submitted) {
+      submitted.value = true
+    } else if (res.fallback_url) {
+      // Telegram failed or not configured — open GitHub URL as fallback
+      await openInBrowser(res.fallback_url)
+      submitted.value = true
+    } else {
+      submitError.value = res.error_message || t('report.submitFailed')
     }
   } catch {
     // Backend unavailable — build URL client-side and open directly
     const body = buildIssueBody()
     const url = buildGitHubURL(title.value, body)
     await openInBrowser(url)
-    telegramSent.value = false
     submitted.value = true
   } finally {
     loading.value = false
@@ -129,10 +132,7 @@ async function handleSubmit() {
       <div v-if="submitted" class="report-dialog__body">
         <div class="report-success">
           <div class="report-success__text">{{ t('report.success') }}</div>
-          <div class="report-success__hint">{{ t('report.githubOpened') }}</div>
-          <div v-if="telegramSent" class="report-success__telegram">
-            {{ t('report.telegramSent') }}
-          </div>
+          <div class="report-success__hint">{{ t('report.successHint') }}</div>
         </div>
         <div class="report-dialog__footer">
           <button class="btn btn--primary" @click="emit('close')">
@@ -170,6 +170,8 @@ async function handleSubmit() {
             <pre v-else class="report-diag">{{ diagInfo }}</pre>
           </details>
         </div>
+
+        <div v-if="submitError" class="report-error">{{ submitError }}</div>
 
         <div class="report-dialog__footer">
           <button class="btn btn--secondary" @click="emit('close')">
@@ -338,9 +340,9 @@ async function handleSubmit() {
   margin-bottom: 4px;
 }
 
-.report-success__telegram {
+.report-error {
+  color: #ef4444;
   font-size: 13px;
-  color: var(--color-text-secondary, #6b7280);
   margin-top: 8px;
 }
 </style>

@@ -34,8 +34,10 @@ type CrashReport struct {
 
 // ReportResult is returned after submitting a report.
 type ReportResult struct {
-	GitHubURL    string `json:"github_url"`
+	Submitted    bool   `json:"submitted"`
 	TelegramSent bool   `json:"telegram_sent"`
+	ErrorMessage string `json:"error_message,omitempty"`
+	FallbackURL  string `json:"fallback_url,omitempty"`
 }
 
 // Collect gathers all diagnostic information into a CrashReport.

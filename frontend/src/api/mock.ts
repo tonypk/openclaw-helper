@@ -165,9 +165,8 @@ const mockMethods: Record<string, (params?: unknown) => unknown> = {
     }) as CrashReport,
   "report.submit": () =>
     ({
-      github_url:
-        "https://github.com/tonypk/openclaw-helper/issues/new?title=test&labels=crash-report&body=test",
-      telegram_sent: false,
+      submitted: true,
+      telegram_sent: true,
     }) as ReportResult,
 };
 

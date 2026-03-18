@@ -42,6 +42,7 @@ export default {
     chatHint: "Having issues? Ask me!",
     stuckHint:
       "Installation seems stuck — no progress for 30 seconds. Please report the issue or retry.",
+    backendError: "Backend service connection failed",
   },
   config: {
     title: "Configuration",
@@ -106,8 +107,8 @@ export default {
     submit: "Submit Report",
     submitting: "Submitting...",
     success: "Report submitted, thank you!",
-    telegramSent: "Also sent to Telegram channel",
-    githubOpened: "Opening GitHub...",
+    successHint: "We received your feedback and will look into it.",
+    submitFailed: "Submission failed, please try again later",
   },
   common: {
     cancel: "Cancel",
