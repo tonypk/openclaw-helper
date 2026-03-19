@@ -1,4 +1,4 @@
-VERSION ?= 0.3.5
+VERSION ?= 0.4.0
 BINARY_NAME = och-helper
 WINDOWS_BINARY = $(BINARY_NAME).exe
 TARGET_TRIPLE := $(shell rustc -vV 2>/dev/null | grep host | cut -d' ' -f2)

@@ -25,7 +25,7 @@ import (
 	"github.com/tonypk/openclaw-helper/internal/types"
 )
 
-var version = "0.1.0"
+var version = "0.4.0"
 
 func main() {
 	pipePath := flag.String("pipe", "", "IPC pipe/socket address (default: platform default)")
