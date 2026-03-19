@@ -39,9 +39,6 @@
       "nsis": {
         "languages": ["SimpChinese", "English"],
         "displayLanguageSelector": true,
-        "installerIcon": "icons/icon.ico",
-        "headerImage": null,
-        "sidebarImage": null,
         "installMode": "currentUser",
         "installerHooks": "nsis/installer.nsh"
       }
@@ -55,7 +52,7 @@
       "endpoints": [
         "https://github.com/tonypk/openclaw-helper/releases/latest/download/latest.json"
       ],
-      "pubkey": ""
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlFNDdFODU4NUY3REIyRTQKUldUa3NuMWZXT2hIbnRqdWIreGdZQ0ZtM092VlNwdm0wYjZwYVhyM2VXU3NtR3BRazNON3d3NjQK"
     }
   }
 }

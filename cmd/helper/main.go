@@ -13,12 +13,15 @@ import (
 	"sync"
 	"syscall"
 
+	"path/filepath"
+
 	"github.com/tonypk/openclaw-helper/internal/chat"
 	"github.com/tonypk/openclaw-helper/internal/checker"
 	"github.com/tonypk/openclaw-helper/internal/diagnosis"
 	"github.com/tonypk/openclaw-helper/internal/installer"
 	"github.com/tonypk/openclaw-helper/internal/ipc"
 	"github.com/tonypk/openclaw-helper/internal/report"
+	"github.com/tonypk/openclaw-helper/internal/scriptrun"
 	"github.com/tonypk/openclaw-helper/internal/types"
 )
 
@@ -59,15 +62,31 @@ func runCLICheck(sc *checker.SystemChecker) {
 }
 
 func runServer(sc *checker.SystemChecker, pipePath string) {
-	// Create installer orchestrator
+	// Set up remote script cache for hot-updatable installation scripts.
+	scriptCacheDir := scriptCacheDir()
+	fallback := scriptrun.NewFallbackScripts()
+	cache := scriptrun.NewCache(scriptCacheDir, "", fallback)
+	runner := scriptrun.NewRunner(cache)
+
+	// Background sync: fetch latest scripts from GitHub.
+	go func() {
+		if err := cache.Sync(); err != nil {
+			log.Printf("[startup] script cache sync failed (will use fallback): %v", err)
+		} else {
+			log.Printf("[startup] script cache synced to %s", scriptCacheDir)
+		}
+	}()
+
+	// Precheck stays native Go (needs Windows API for memory/disk checks).
+	// All other phases use remote scripts via ScriptPhaseExecutor.
 	orch := installer.NewOrchestrator([]installer.PhaseExecutor{
 		installer.NewPrecheckExecutor(sc),
-		&installer.WSLInstaller{},
-		&installer.UbuntuConfigurer{},
-		&installer.NodeInstaller{},
-		&installer.OpenClawInstaller{},
-		&installer.ConfigPhase{},
-		&installer.VerifyPhase{},
+		scriptrun.NewScriptPhaseExecutor(installer.PhaseWSL, runner, cache),
+		scriptrun.NewScriptPhaseExecutor(installer.PhaseUbuntu, runner, cache),
+		scriptrun.NewScriptPhaseExecutor(installer.PhaseNode, runner, cache),
+		scriptrun.NewScriptPhaseExecutor(installer.PhaseOpenClaw, runner, cache),
+		scriptrun.NewScriptPhaseExecutor(installer.PhaseConfig, runner, cache),
+		scriptrun.NewScriptPhaseExecutor(installer.PhaseVerify, runner, cache),
 	})
 
 	// Create diagnosis engine and chat handler
@@ -314,4 +333,13 @@ func registerHandlers(router *ipc.Router, sc *checker.SystemChecker, orch *insta
 
 		return result, nil
 	})
+}
+
+// scriptCacheDir returns the directory for cached remote scripts.
+func scriptCacheDir() string {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		dir = os.TempDir()
+	}
+	return filepath.Join(dir, "openclaw-helper", "scripts")
 }
