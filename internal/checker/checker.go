@@ -2,6 +2,9 @@
 package checker
 
 import (
+	"log"
+	"time"
+
 	"github.com/tonypk/openclaw-helper/internal/types"
 )
 
@@ -31,12 +34,16 @@ func New() *SystemChecker {
 	}
 }
 
+// checkTimeout is the maximum time a single system check may take.
+const checkTimeout = 15 * time.Second
+
 // RunAll executes all checkers and returns a SystemReport.
+// Each checker is run with a timeout to prevent blocking.
 func (sc *SystemChecker) RunAll() types.SystemReport {
 	report := types.SystemReport{OverallReady: true}
 
 	for _, c := range sc.checkers {
-		result := c.Check()
+		result := runWithTimeout(c, checkTimeout)
 		switch c.Name() {
 		case "os":
 			report.OS = result
@@ -59,6 +66,28 @@ func (sc *SystemChecker) RunAll() types.SystemReport {
 	}
 
 	return report
+}
+
+// runWithTimeout runs a single checker with a timeout.
+// If the check exceeds the timeout, a warning result is returned.
+func runWithTimeout(c Checker, timeout time.Duration) types.CheckResult {
+	ch := make(chan types.CheckResult, 1)
+	go func() {
+		ch <- c.Check()
+	}()
+
+	select {
+	case result := <-ch:
+		return result
+	case <-time.After(timeout):
+		log.Printf("[checker] %s timed out after %v", c.Name(), timeout)
+		return types.CheckResult{
+			Name:    c.Name(),
+			Status:  types.StatusWarn,
+			Message: "Check timed out — skipping",
+			Detail:  "This check took too long and was skipped. This is not a critical issue.",
+		}
+	}
 }
 
 // RunSingle runs a single checker by name.

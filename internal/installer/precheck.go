@@ -23,14 +23,31 @@ func (p *PrecheckExecutor) Phase() Phase { return PhasePrecheck }
 
 func (p *PrecheckExecutor) Verify() bool { return false }
 
-func (p *PrecheckExecutor) Execute(_ context.Context, progress func(ProgressEvent)) (bool, error) {
+func (p *PrecheckExecutor) Execute(ctx context.Context, progress func(ProgressEvent)) (bool, error) {
 	progress(ProgressEvent{
 		Phase: PhasePrecheck, Status: PhaseRunning,
 		Message:  "Running system checks...", Progress: 10,
 		Timestamp: time.Now(),
 	})
 
-	report := p.checker.RunAll()
+	// Run checks with overall timeout to prevent indefinite blocking.
+	type reportResult struct {
+		report types.SystemReport
+	}
+	ch := make(chan reportResult, 1)
+	go func() {
+		ch <- reportResult{report: p.checker.RunAll()}
+	}()
+
+	var report types.SystemReport
+	select {
+	case res := <-ch:
+		report = res.report
+	case <-ctx.Done():
+		return false, fmt.Errorf("system checks cancelled")
+	case <-time.After(90 * time.Second):
+		return false, fmt.Errorf("system checks timed out — your system may be slow to respond. Please retry")
+	}
 
 	progress(ProgressEvent{
 		Phase: PhasePrecheck, Status: PhaseRunning,

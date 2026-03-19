@@ -16,16 +16,8 @@ func (c *VirtualizationChecker) Name() string { return "virtualization" }
 func (c *VirtualizationChecker) Check() types.CheckResult {
 	result := types.CheckResult{Name: "virtualization"}
 
-	// Try systeminfo first (faster, no elevation needed)
-	out, err := runPowerShell(`(systeminfo) -match "Hyper-V"`)
-	if err == nil && strings.Contains(out, "Yes") {
-		result.Status = types.StatusPass
-		result.Message = "Hyper-V supported and enabled"
-		return result
-	}
-
-	// Fallback: check via WMI
-	out, err = runPowerShell(`(Get-CimInstance Win32_Processor).VirtualizationFirmwareEnabled`)
+	// Use WMI directly — systeminfo is extremely slow on some machines (30-60s+)
+	out, err := runPowerShell(`(Get-CimInstance Win32_Processor).VirtualizationFirmwareEnabled`)
 	if err != nil {
 		result.Status = types.StatusWarn
 		result.Message = "Unable to detect virtualization status"

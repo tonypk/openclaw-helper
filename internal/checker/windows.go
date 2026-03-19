@@ -3,11 +3,13 @@
 package checker
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/tonypk/openclaw-helper/internal/types"
@@ -131,9 +133,18 @@ func (c *DiskChecker) Check() types.CheckResult {
 	return result
 }
 
+// perCheckTimeout is the maximum time each PowerShell/system check may run.
+const perCheckTimeout = 15 * time.Second
+
 func runPowerShell(script string) (string, error) {
-	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
+	ctx, cancel := context.WithTimeout(context.Background(), perCheckTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "powershell", "-NoProfile", "-NonInteractive", "-Command", script)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return "", fmt.Errorf("timed out after %v", perCheckTimeout)
+	}
 	return string(out), err
 }

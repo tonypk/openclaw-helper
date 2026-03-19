@@ -12,6 +12,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::helper_rpc,
             commands::check_update,
+            commands::report_telegram_fallback,
         ])
         .setup(|app| {
             // Launch Go helper sidecar

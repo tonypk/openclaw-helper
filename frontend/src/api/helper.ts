@@ -221,6 +221,49 @@ export async function openInBrowser(url: string): Promise<void> {
   }
 }
 
+/** Call a Go Helper RPC method with a custom timeout. Rejects if the call takes too long. */
+async function callWithTimeout<T>(
+  method: string,
+  params: unknown,
+  timeoutMs: number,
+): Promise<T> {
+  return Promise.race([
+    call<T>(method, params),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`${method} timed out after ${timeoutMs}ms`)),
+        timeoutMs,
+      ),
+    ),
+  ]);
+}
+
+// Report calls with short timeout — fallback quickly if sidecar is unresponsive.
+const REPORT_TIMEOUT_MS = 4000;
+
+export const reportCollectFast = () =>
+  callWithTimeout<CrashReport>("report.collect", undefined, REPORT_TIMEOUT_MS);
+export const reportSubmitFast = (title: string, description: string) =>
+  callWithTimeout<ReportResult>(
+    "report.submit",
+    { title, description },
+    REPORT_TIMEOUT_MS,
+  );
+
+/** Send a report directly to Telegram via Tauri (bypasses Go sidecar). */
+export async function reportTelegramFallback(
+  title: string,
+  body: string,
+): Promise<boolean> {
+  if (window.__TAURI__) {
+    return window.__TAURI__.core.invoke<boolean>("report_telegram_fallback", {
+      title,
+      body,
+    });
+  }
+  return false;
+}
+
 /** The default OpenClaw Gateway console URL. */
 export const OPENCLAW_CONSOLE_URL = "http://localhost:18789";
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { reportCollect, reportSubmit, openInBrowser } from '../../api/helper'
+import { reportCollectFast, reportSubmitFast, reportTelegramFallback, openInBrowser } from '../../api/helper'
 
 const props = defineProps<{
   errorPhase?: string
@@ -34,7 +34,7 @@ onMounted(async () => {
 
   // Try to collect diagnostic info from Go backend
   try {
-    const report = await reportCollect()
+    const report = await reportCollectFast()
     diagInfo.value = report.system_summary || ''
   } catch {
     // Backend unavailable — build basic info client-side
@@ -98,7 +98,7 @@ async function handleSubmit() {
   submitError.value = ''
 
   try {
-    const res = await reportSubmit(title.value, description.value)
+    const res = await reportSubmitFast(title.value, description.value)
     if (res.submitted) {
       submitted.value = true
     } else if (res.fallback_url) {
@@ -109,8 +109,17 @@ async function handleSubmit() {
       submitError.value = res.error_message || t('report.submitFailed')
     }
   } catch {
-    // Backend unavailable — build URL client-side and open directly
+    // Backend unavailable — try Telegram fallback (Tauri-native), then GitHub URL
     const body = buildIssueBody()
+    try {
+      const sent = await reportTelegramFallback(title.value, body)
+      if (sent) {
+        submitted.value = true
+        return
+      }
+    } catch {
+      // Telegram fallback also failed — open GitHub as last resort
+    }
     const url = buildGitHubURL(title.value, body)
     await openInBrowser(url)
     submitted.value = true
