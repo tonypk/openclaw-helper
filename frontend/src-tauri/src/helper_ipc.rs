@@ -9,12 +9,12 @@ use tokio::net::UnixStream;
 static PIPE_PATH: OnceLock<String> = OnceLock::new();
 static RPC_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
-/// Maximum retries for connecting to the Go helper.
-const MAX_RETRIES: u32 = 3;
+/// Maximum retries for a single RPC call.
+const MAX_RETRIES: u32 = 5;
 /// Delay between retries in milliseconds.
-const RETRY_DELAY_MS: u64 = 500;
+const RETRY_DELAY_MS: u64 = 800;
 
-/// Start the Go helper sidecar process.
+/// Start the Go helper sidecar process and wait for it to be ready.
 pub fn start_helper(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     // Determine pipe/socket path
     #[cfg(windows)]
@@ -63,21 +63,25 @@ pub fn start_helper(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> 
         }
     });
 
-    // Wait for sidecar to be ready by polling with retries
-    let pipe_clone = pipe.clone();
-    std::thread::spawn(move || {
-        for attempt in 1..=10 {
-            std::thread::sleep(std::time::Duration::from_millis(300 * attempt));
-            if try_ping_sync(&pipe_clone) {
-                log::info!("Go helper sidecar ready after {} attempts", attempt);
-                return;
-            }
-            log::info!("Waiting for Go helper sidecar (attempt {}/10)...", attempt);
+    // BLOCKING: Wait for sidecar to be ready before returning.
+    // This ensures the Go helper is accepting connections when the UI renders.
+    log::info!("Waiting for Go helper sidecar on {}...", pipe);
+    let mut ready = false;
+    for attempt in 1..=20 {
+        std::thread::sleep(std::time::Duration::from_millis(300 * std::cmp::min(attempt, 5)));
+        if try_ping_sync(&pipe) {
+            log::info!("Go helper sidecar ready after {} attempts", attempt);
+            ready = true;
+            break;
         }
-        log::warn!("Go helper sidecar did not respond to ping after 10 attempts");
-    });
+        log::info!("Waiting for Go helper sidecar (attempt {}/20)...", attempt);
+    }
 
-    log::info!("Go helper sidecar spawned on {}", PIPE_PATH.get().unwrap());
+    if !ready {
+        log::error!("Go helper sidecar did not respond to ping after 20 attempts");
+        // Don't return error — let the UI show the error state instead of crashing
+    }
+
     Ok(())
 }
 
@@ -160,13 +164,13 @@ pub async fn call(method: &str, params: Option<Value>) -> Result<Value, Box<dyn 
                 return Ok(resp.get("result").cloned().unwrap_or(Value::Null));
             }
             Err(e) => {
-                log::warn!("[ipc] attempt {}/{} failed: {}", attempt + 1, MAX_RETRIES, e);
+                log::warn!("[ipc] attempt {}/{} for '{}' failed: {}", attempt + 1, MAX_RETRIES, method, e);
                 last_err = Some(e);
             }
         }
     }
 
-    Err(last_err.unwrap_or_else(|| "helper not reachable".to_string().into()))
+    Err(last_err.unwrap_or_else(|| format!("helper not reachable after {} retries (method: {})", MAX_RETRIES, method).into()))
 }
 
 /// Send a single RPC request and return the raw response string.
