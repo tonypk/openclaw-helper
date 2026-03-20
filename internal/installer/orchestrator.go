@@ -2,11 +2,14 @@ package installer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/tonypk/openclaw-helper/internal/healing"
 	"github.com/tonypk/openclaw-helper/internal/playbook"
 )
 
@@ -25,12 +28,13 @@ type ProgressCallback func(ProgressEvent)
 
 // Orchestrator manages the installation state machine.
 type Orchestrator struct {
-	mu        sync.RWMutex
-	state     *InstallState
-	executors map[Phase]PhaseExecutor
-	callbacks []ProgressCallback
-	cancel    context.CancelFunc
-	running   bool
+	mu          sync.RWMutex
+	state       *InstallState
+	executors   map[Phase]PhaseExecutor
+	callbacks   []ProgressCallback
+	cancel      context.CancelFunc
+	running     bool
+	healingExec *healing.Executor
 }
 
 // NewOrchestrator creates a new orchestrator, optionally resuming from saved state.
@@ -293,24 +297,48 @@ func (o *Orchestrator) run(ctx context.Context, startPhase Phase) {
 			Overall: o.calculateOverall(),
 		})
 
-		needsReboot, err := executor.Execute(ctx, func(evt ProgressEvent) {
+		progressCb := func(evt ProgressEvent) {
 			evt.Overall = o.calculateOverall()
 			o.emit(evt)
-		})
+		}
 
-		if err != nil {
+		var needsReboot bool
+		var execErr error
+
+		if o.healingExec != nil {
+			// Use healing executor (wraps phase execution with repair loop)
+			adapter := &phaseRunnerAdapter{executor: executor, progressCb: progressCb}
+			healResult := o.healingExec.ExecutePhase(ctx, string(phase), adapter)
+
+			if len(healResult.HealingHistory) > 0 {
+				o.mu.Lock()
+				o.state.HealingHistory = append(o.state.HealingHistory, healResult.HealingHistory...)
+				o.mu.Unlock()
+				o.state.Save()
+			}
+
+			needsReboot = healResult.NeedsReboot
+			if !healResult.Success && !healResult.NeedsReboot {
+				execErr = fmt.Errorf("%s", healResult.ErrorMessage)
+			}
+		} else {
+			// Original path without healing
+			needsReboot, execErr = executor.Execute(ctx, progressCb)
+		}
+
+		if execErr != nil {
 			o.mu.Lock()
 			o.state.CurrentPhase = PhaseError
 			o.state.PhaseResults[phase] = PhaseFailed
 			o.state.ErrorPhase = phase
-			o.state.ErrorMessage = err.Error()
+			o.state.ErrorMessage = execErr.Error()
 			o.state.Save()
 			o.mu.Unlock()
 
 			o.emit(ProgressEvent{
 				Phase:   phase,
 				Status:  PhaseFailed,
-				Message: err.Error(),
+				Message: execErr.Error(),
 				Overall: o.calculateOverall(),
 			})
 			return
@@ -411,4 +439,63 @@ func (o *Orchestrator) GetHealingHistory() []playbook.HealingRecord {
 	result := make([]playbook.HealingRecord, len(o.state.HealingHistory))
 	copy(result, o.state.HealingHistory)
 	return result
+}
+
+// SetHealingExecutor configures the self-healing executor for automatic repair.
+func (o *Orchestrator) SetHealingExecutor(exec *healing.Executor) {
+	o.healingExec = exec
+}
+
+// EmitHealingEvent converts a healing.Event into a ProgressEvent for the frontend.
+func (o *Orchestrator) EmitHealingEvent(e healing.Event) {
+	detail, _ := json.Marshal(e)
+	o.emit(ProgressEvent{
+		Phase:   o.state.CurrentPhase,
+		Status:  PhaseRunning,
+		Message: "HEAL:" + string(e.Type),
+		Detail:  string(detail),
+	})
+}
+
+// phaseRunnerAdapter adapts PhaseExecutor to healing.PhaseRunner interface.
+type phaseRunnerAdapter struct {
+	executor   PhaseExecutor
+	progressCb ProgressCallback
+}
+
+func (a *phaseRunnerAdapter) RunPhase(ctx context.Context, phase string) healing.PhaseRunResult {
+	var logBuilder strings.Builder
+
+	wrappedCb := func(evt ProgressEvent) {
+		if evt.Message != "" {
+			logBuilder.WriteString(evt.Message)
+			logBuilder.WriteString("\n")
+		}
+		if evt.Detail != "" {
+			logBuilder.WriteString(evt.Detail)
+			logBuilder.WriteString("\n")
+		}
+		if a.progressCb != nil {
+			a.progressCb(evt)
+		}
+	}
+
+	needsReboot, err := a.executor.Execute(ctx, wrappedCb)
+	fullLog := logBuilder.String()
+
+	if err != nil {
+		errorLog := fullLog
+		if errorLog == "" {
+			errorLog = err.Error()
+		}
+		return healing.PhaseRunResult{
+			Success:      false,
+			ErrorLog:     errorLog,
+			ErrorMessage: err.Error(),
+		}
+	}
+	if needsReboot {
+		return healing.PhaseRunResult{NeedsReboot: true}
+	}
+	return healing.PhaseRunResult{Success: true}
 }
