@@ -180,7 +180,7 @@ Extends the existing V1 manifest to cover all hot-updatable resources:
 
 1. **App startup** — Background goroutine fetches manifest (existing behavior, expanded scope).
 2. **During installation** — After a playbook repair fails, force re-sync manifest to check for newly published playbooks.
-3. **Three-tier fallback** — Remote fetch → local cache (`%APPDATA%/openclaw-helper/scripts/`) → go:embed embedded files.
+3. **Three-tier fallback** — Remote fetch (15s timeout, matching existing `manifestFetchTimeout`) → local cache (`%APPDATA%/openclaw-helper/scripts/`) → go:embed embedded files.
 4. **Integrity** — All resources verified by SHA-256 before use.
 5. **ETag caching** — HTTP 304 reduces bandwidth for unchanged resources.
 6. **Per-resource versioning** — Each resource category has an independent version number; only changed resources are downloaded.
@@ -315,7 +315,7 @@ New event types added to the `##OCH:` protocol for real-time frontend updates:
 ```
 ##OCH:HEAL:START:<issue_id>
 ##OCH:HEAL:STRATEGY:<strategy_name>
-##OCH:HEAL:REPAIR:<script>:<status>       # status: running|success|failed
+##OCH:HEAL:REPAIR:<script>=<status>        # status: running|success|failed (uses = separator to avoid colon conflicts)
 ##OCH:HEAL:RETRY:<attempt>/<max>
 ##OCH:HEAL:RESOLVED:<issue_id>
 ##OCH:HEAL:ESCALATE:<target>              # target: ai_chat|crash_report
@@ -422,7 +422,7 @@ func (s *Store) Reload(ctx context.Context) error         // force reload from r
 | `internal/installer/phases.go` | Add `HealingHistory` field to `InstallState` |
 | `internal/scriptrun/cache.go` | Extend to handle playbooks, diagnostics, FAQ, config (not just phase scripts) |
 | `internal/scriptrun/manifest.go` | Parse V2 manifest fields (playbooks, diagnostics, faq, config, repair_scripts) |
-| `internal/diagnosis/engine.go` | Support loading rules from remote JSON (not just hardcoded) |
+| `internal/diagnosis/engine.go` | Support loading rules from remote JSON (not just hardcoded). Remote rules use regex-based matching: each rule has `error_patterns` (regex array matched against logs) and `check_commands` (shell commands returning exit code). The engine converts these into Go match functions at load time, then merges with hardcoded rules (hardcoded take priority on ID conflict). |
 | `internal/diagnosis/rules.go` | Keep hardcoded rules as fallback; merge with remote rules |
 | `internal/chat/handler.go` | Accept healing context (history, failed strategies) for richer AI prompts |
 | `internal/ipc/protocol.go` | Add healing event types to JSON-RPC notification schema |
