@@ -75,6 +75,45 @@ func (r *Runner) Run(ctx context.Context, entry *ScriptEntry, onProgress Progres
 	return result, nil
 }
 
+// RunContent executes raw script content with the given entry's runtime and timeout settings.
+// This is used for repair scripts loaded from cache as raw bytes.
+// Mirrors the existing Run() method but skips cache lookup.
+func (r *Runner) RunContent(ctx context.Context, entry *ScriptEntry, content []byte, onProgress ProgressFunc) (*RunResult, error) {
+	if entry == nil {
+		return nil, fmt.Errorf("nil script entry")
+	}
+
+	timeout := time.Duration(entry.TimeoutSeconds) * time.Second
+	if timeout == 0 {
+		timeout = 5 * time.Minute
+	}
+	tCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	stdout, exitCode, err := executeScript(tCtx, entry.Runtime, entry.Distro, string(content))
+	if tCtx.Err() == context.DeadlineExceeded {
+		return nil, fmt.Errorf("script timed out after %v", timeout)
+	}
+
+	result := &RunResult{
+		ExitCode:    exitCode,
+		Diagnostics: make(map[string]string),
+	}
+
+	if stdout != nil {
+		r.parseOutput(stdout, result, onProgress)
+	}
+
+	if err != nil && !result.NeedsReboot {
+		if result.ErrorMessage != "" {
+			return result, fmt.Errorf("%s", result.ErrorMessage)
+		}
+		return result, fmt.Errorf("script failed with exit code %d", exitCode)
+	}
+
+	return result, nil
+}
+
 // parseOutput reads script output line-by-line and processes ##OCH: messages.
 func (r *Runner) parseOutput(reader io.Reader, result *RunResult, onProgress ProgressFunc) {
 	scanner := bufio.NewScanner(reader)
