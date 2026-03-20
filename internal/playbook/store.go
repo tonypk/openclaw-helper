@@ -3,6 +3,7 @@ package playbook
 import (
 	"encoding/json"
 	"regexp"
+	"strings"
 	"sync"
 )
 
@@ -129,36 +130,5 @@ func (s *Store) Count() int {
 // containsIgnoreCase checks if haystack contains needle (case-insensitive).
 // Used as fallback when regex compilation fails.
 func containsIgnoreCase(haystack, needle string) bool {
-	if needle == "" {
-		return true
-	}
-
-	// Simple substring search with case-insensitive comparison
-	// For better performance, could use strings.ToLower, but this is simpler
-	needleLen := len(needle)
-	for i := 0; i <= len(haystack)-needleLen; i++ {
-		match := true
-		for j := 0; j < needleLen; j++ {
-			h := haystack[i+j]
-			n := needle[j]
-
-			// Convert to uppercase for comparison
-			if h >= 'a' && h <= 'z' {
-				h = h - 'a' + 'A'
-			}
-			if n >= 'a' && n <= 'z' {
-				n = n - 'a' + 'A'
-			}
-
-			if h != n {
-				match = false
-				break
-			}
-		}
-		if match {
-			return true
-		}
-	}
-
-	return false
+	return strings.Contains(strings.ToLower(haystack), strings.ToLower(needle))
 }

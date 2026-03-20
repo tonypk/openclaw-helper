@@ -95,6 +95,9 @@ func (e *Executor) ExecutePhase(ctx context.Context, phase string, runner PhaseR
 		result := runner.RunPhase(ctx, phase)
 
 		if result.Success {
+			if len(history) > 0 {
+				e.onEvent(Event{Type: EventHealResolved, Issue: history[len(history)-1].Issue})
+			}
 			return PhaseResult{
 				Success:        true,
 				HealingHistory: history,
@@ -160,7 +163,10 @@ func (e *Executor) ExecutePhase(ctx context.Context, phase string, runner PhaseR
 			if attempt == e.maxRetries {
 				break
 			}
-			// Continue to next attempt (will re-run phase and re-diagnose)
+			// Force-sync to check for updated playbooks before retrying
+			if e.syncer != nil {
+				_ = e.syncer.ForceSync()
+			}
 			continue
 		}
 
@@ -212,8 +218,7 @@ func (e *Executor) executeStrategy(ctx context.Context, strategy playbook.Strate
 			return true
 
 		case "set_env", "write_file":
-			// These are simple enough to always succeed in this context.
-			// Actual implementation would shell out.
+			// TODO: implement set_env and write_file action types
 			continue
 		}
 	}

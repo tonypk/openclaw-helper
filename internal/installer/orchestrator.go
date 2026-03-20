@@ -313,8 +313,8 @@ func (o *Orchestrator) run(ctx context.Context, startPhase Phase) {
 			if len(healResult.HealingHistory) > 0 {
 				o.mu.Lock()
 				o.state.HealingHistory = append(o.state.HealingHistory, healResult.HealingHistory...)
-				o.mu.Unlock()
 				o.state.Save()
+				o.mu.Unlock()
 			}
 
 			needsReboot = healResult.NeedsReboot

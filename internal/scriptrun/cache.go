@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -344,6 +345,12 @@ func (c *Cache) GetResource(name string) ([]byte, error) {
 // GetRepairScript returns the content of a cached repair script by relative path.
 func (c *Cache) GetRepairScript(relativePath string) ([]byte, error) {
 	localPath := filepath.Join(c.dir, relativePath)
+	// Prevent path traversal — ensure resolved path stays within cache dir
+	cleanPath := filepath.Clean(localPath)
+	cleanDir := filepath.Clean(c.dir) + string(filepath.Separator)
+	if !strings.HasPrefix(cleanPath, cleanDir) {
+		return nil, fmt.Errorf("path traversal detected: %s", relativePath)
+	}
 	return os.ReadFile(localPath)
 }
 
@@ -352,8 +359,5 @@ func (c *Cache) ForceSync() error {
 	c.mu.Lock()
 	c.etag = ""
 	c.mu.Unlock()
-	if err := c.Sync(); err != nil {
-		return err
-	}
-	return c.SyncResources()
+	return c.Sync() // Sync() already calls SyncResources()
 }
