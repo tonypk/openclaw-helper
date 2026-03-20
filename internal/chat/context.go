@@ -16,8 +16,9 @@ type ChatMessage struct {
 type ChatContext struct {
 	Messages     []ChatMessage `json:"messages"`
 	CurrentPhase string        `json:"current_phase"`
-	ErrorLog     string        `json:"error_log,omitempty"`
-	Language     string        `json:"language"` // "zh-CN" or "en-US"
+	ErrorLog       string        `json:"error_log,omitempty"`
+	Language       string        `json:"language"` // "zh-CN" or "en-US"
+	HealingHistory string        `json:"healing_history,omitempty"`
 }
 
 // NewChatContext creates a new chat context.
@@ -85,6 +86,10 @@ Guidelines:
 - If the user is in China, recommend DeepSeek and npmmirror
 - Always respond in the user's language (` + c.Language + `)
 - Keep responses concise but helpful`
+
+	if c.HealingHistory != "" {
+		prompt += "\n\nThe user's installation encountered issues. Auto-repair was attempted but failed. Here is the healing history:\n" + c.HealingHistory + "\n\nAnalyze the error and healing attempts to provide specific, actionable advice."
+	}
 
 	return prompt
 }
