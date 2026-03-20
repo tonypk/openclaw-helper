@@ -18,6 +18,7 @@ const (
 	MsgReboot   MessageType = "REBOOT"
 	MsgVerify   MessageType = "VERIFY"
 	MsgDiag     MessageType = "DIAG"
+	MsgHeal     MessageType = "HEAL"
 )
 
 // ProtocolMessage is a parsed ##OCH: line from script output.
@@ -31,6 +32,10 @@ type ProtocolMessage struct {
 	// For DIAG: parsed JSON key-value
 	DiagKey   string
 	DiagValue string
+	// For HEAL: "START", "STRATEGY", "REPAIR", "RETRY", "RESOLVED", "ESCALATE"
+	HealType   string
+	HealIssue  string
+	HealDetail string
 }
 
 const protocolPrefix = "##OCH:"
@@ -69,6 +74,8 @@ func ParseLine(line string) *ProtocolMessage {
 		return parseVerify(payload)
 	case MsgDiag:
 		return parseDiag(payload)
+	case MsgHeal:
+		return parseHeal(payload)
 	default:
 		return nil
 	}
@@ -117,4 +124,26 @@ func parseDiag(payload string) *ProtocolMessage {
 		return &ProtocolMessage{Type: MsgDiag, Text: payload}
 	}
 	return &ProtocolMessage{Type: MsgDiag, DiagKey: kv.Key, DiagValue: kv.Value, Text: payload}
+}
+
+// parseHeal parses "TYPE:issue:detail" format where TYPE is START, STRATEGY, REPAIR, RETRY, RESOLVED, ESCALATE.
+func parseHeal(payload string) *ProtocolMessage {
+	payload = strings.TrimSpace(payload)
+	healParts := strings.SplitN(payload, ":", 2)
+	if len(healParts) == 0 {
+		return &ProtocolMessage{Type: MsgHeal, Text: payload}
+	}
+
+	msg := &ProtocolMessage{Type: MsgHeal, HealType: healParts[0]}
+	if len(healParts) > 1 {
+		msg.HealDetail = healParts[1]
+	}
+
+	// For START and RESOLVED types, the detail is the issue identifier
+	if msg.HealType == "START" || msg.HealType == "RESOLVED" {
+		msg.HealIssue = msg.HealDetail
+	}
+
+	msg.Text = payload
+	return msg
 }
