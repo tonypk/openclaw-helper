@@ -63,6 +63,15 @@ export interface ProgressEvent {
   timestamp: string;
 }
 
+export interface HealingEvent {
+  type: 'heal_start' | 'heal_strategy' | 'heal_repair' | 'heal_retry' | 'heal_resolved' | 'heal_escalate';
+  issue?: string;
+  strategy?: string;
+  detail?: string;
+  attempt?: number;
+  max_retry?: number;
+}
+
 export interface DiagnosticReport {
   issues: DiagIssue[];
   healthy: boolean;

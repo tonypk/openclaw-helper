@@ -7,6 +7,7 @@ import { useChatStore } from '../stores/chat'
 import StepProgress from '../components/install/StepProgress.vue'
 import LogViewer from '../components/install/LogViewer.vue'
 import ErrorCard from '../components/install/ErrorCard.vue'
+import HealingProgress from '../components/install/HealingProgress.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -65,6 +66,8 @@ function goSuccess() {
       </div>
       <span class="progress-text">{{ overall }}%</span>
     </div>
+
+    <HealingProgress />
 
     <ErrorCard
       v-if="isError && install.status"

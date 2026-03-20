@@ -108,6 +108,13 @@ export default {
     successHint: "我们已收到你的反馈，会尽快处理。",
     submitFailed: "提交失败，请稍后重试",
   },
+  healing: {
+    autoRepairing: '自动修复中...',
+    resolved: '自动修复了 {n} 个问题',
+    strategy: '策略: {name}',
+    escalateAI: '自动修复失败，AI 助手已接管',
+    escalateReport: '提交详细报告给开发者',
+  },
   common: {
     cancel: "取消",
     retry: "重试",

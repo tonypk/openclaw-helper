@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { InstallStatus, ProgressEvent } from "../api/helper";
+import type { InstallStatus, ProgressEvent, HealingEvent } from "../api/helper";
+import { useHealingStore } from "./healing";
 import {
   installStart,
   installStatus,
@@ -68,6 +69,21 @@ export const useInstallStore = defineStore("install", () => {
       // Keep last 200 events
       if (events.value.length > 200) {
         events.value = events.value.slice(-200);
+      }
+    }
+
+    // Forward healing events to healing store
+    if (newEvents.length > 0) {
+      const healingStore = useHealingStore()
+      for (const event of newEvents) {
+        if (event.message?.startsWith('HEAL:')) {
+          try {
+            const healData: HealingEvent = JSON.parse(event.detail || '{}')
+            healingStore.onHealEvent(healData)
+          } catch {
+            // Ignore malformed healing events
+          }
+        }
       }
     }
   }

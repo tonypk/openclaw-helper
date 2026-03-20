@@ -110,6 +110,13 @@ export default {
     successHint: "We received your feedback and will look into it.",
     submitFailed: "Submission failed, please try again later",
   },
+  healing: {
+    autoRepairing: 'Auto-repairing...',
+    resolved: 'Auto-repaired {n} issue(s)',
+    strategy: 'Strategy: {name}',
+    escalateAI: 'Auto-repair failed, AI assistant taking over',
+    escalateReport: 'Submit detailed report to developer',
+  },
   common: {
     cancel: "Cancel",
     retry: "Retry",
