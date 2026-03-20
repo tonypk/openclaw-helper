@@ -38,10 +38,29 @@ type PhaseScripts struct {
 	Verify  *ScriptEntry `json:"verify,omitempty"`
 }
 
+// ResourceEntry describes a hot-updatable resource (playbooks, diagnostics, faq, config).
+type ResourceEntry struct {
+	Version int    `json:"version"`
+	URL     string `json:"url"`
+	SHA256  string `json:"sha256"`
+}
+
+// RepairScriptEntry describes a single repair script.
+type RepairScriptEntry struct {
+	URL    string `json:"url"`
+	SHA256 string `json:"sha256"`
+}
+
 // Manifest is the top-level structure fetched from GitHub.
 type Manifest struct {
-	Version int                      `json:"version"`
-	Phases  map[string]*PhaseScripts `json:"phases"`
+	Version          int                          `json:"version"`
+	Phases           map[string]*PhaseScripts     `json:"phases"`
+	MinHelperVersion string                       `json:"min_helper_version,omitempty"`
+	Playbooks        *ResourceEntry               `json:"playbooks,omitempty"`
+	Diagnostics      *ResourceEntry               `json:"diagnostics,omitempty"`
+	FAQ              *ResourceEntry               `json:"faq,omitempty"`
+	Config           *ResourceEntry               `json:"config,omitempty"`
+	RepairScripts    map[string]*RepairScriptEntry `json:"repair_scripts,omitempty"`
 }
 
 // FetchManifest downloads and parses the manifest from the given URL.

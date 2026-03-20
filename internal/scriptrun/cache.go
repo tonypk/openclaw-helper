@@ -111,6 +111,10 @@ func (c *Cache) Sync() error {
 	if len(downloadErrors) > 0 {
 		return fmt.Errorf("%d script download(s) failed", len(downloadErrors))
 	}
+
+	if err := c.SyncResources(); err != nil {
+		log.Printf("[cache] resource sync failed: %v", err)
+	}
 	return nil
 }
 
@@ -249,4 +253,107 @@ func (c *Cache) loadState() {
 		c.manifest = state.Manifest
 	}
 	c.mu.Unlock()
+}
+
+// SyncResources downloads playbooks, diagnostics, FAQ, and config if manifest V2.
+func (c *Cache) SyncResources() error {
+	c.mu.RLock()
+	m := c.manifest
+	c.mu.RUnlock()
+
+	if m == nil {
+		return nil
+	}
+
+	resources := map[string]*ResourceEntry{
+		"playbooks":   m.Playbooks,
+		"diagnostics": m.Diagnostics,
+		"faq":         m.FAQ,
+		"config":      m.Config,
+	}
+
+	for name, res := range resources {
+		if res == nil {
+			continue
+		}
+		localPath := filepath.Join(c.dir, name+".json")
+		if c.hashMatches(localPath, res.SHA256) {
+			continue
+		}
+		if err := c.downloadResourceTo(res.URL, res.SHA256, localPath); err != nil {
+			log.Printf("[cache] failed to download %s: %v", name, err)
+		}
+	}
+
+	// Download repair scripts
+	if m.RepairScripts != nil {
+		for _, entry := range m.RepairScripts {
+			localPath := filepath.Join(c.dir, entry.URL)
+			if c.hashMatches(localPath, entry.SHA256) {
+				continue
+			}
+			dir := filepath.Dir(localPath)
+			os.MkdirAll(dir, 0755)
+			if err := c.downloadResourceTo(entry.URL, entry.SHA256, localPath); err != nil {
+				log.Printf("[cache] failed to download repair script %s: %v", entry.URL, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// downloadResourceTo downloads a resource from the remote base URL and saves to a specific local path.
+func (c *Cache) downloadResourceTo(relURL, expectedHash, localPath string) error {
+	fullURL := baseRawURL + relURL
+	client := &http.Client{Timeout: scriptFetchTimeout}
+	resp, err := client.Get(fullURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("HTTP %d for %s", resp.StatusCode, fullURL)
+	}
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
+	if err != nil {
+		return err
+	}
+
+	// Verify hash
+	hash := sha256.Sum256(data)
+	if hex.EncodeToString(hash[:]) != expectedHash {
+		return fmt.Errorf("hash mismatch for %s", relURL)
+	}
+
+	dir := filepath.Dir(localPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(localPath, data, 0644)
+}
+
+// GetResource returns the content of a cached resource file (playbooks.json, diagnostics.json, etc.).
+func (c *Cache) GetResource(name string) ([]byte, error) {
+	localPath := filepath.Join(c.dir, name+".json")
+	return os.ReadFile(localPath)
+}
+
+// GetRepairScript returns the content of a cached repair script by relative path.
+func (c *Cache) GetRepairScript(relativePath string) ([]byte, error) {
+	localPath := filepath.Join(c.dir, relativePath)
+	return os.ReadFile(localPath)
+}
+
+// ForceSync re-fetches the manifest and all resources, ignoring ETag cache.
+func (c *Cache) ForceSync() error {
+	c.mu.Lock()
+	c.etag = ""
+	c.mu.Unlock()
+	if err := c.Sync(); err != nil {
+		return err
+	}
+	return c.SyncResources()
 }
