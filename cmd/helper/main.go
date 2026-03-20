@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -18,8 +19,10 @@ import (
 	"github.com/tonypk/openclaw-helper/internal/chat"
 	"github.com/tonypk/openclaw-helper/internal/checker"
 	"github.com/tonypk/openclaw-helper/internal/diagnosis"
+	"github.com/tonypk/openclaw-helper/internal/healing"
 	"github.com/tonypk/openclaw-helper/internal/installer"
 	"github.com/tonypk/openclaw-helper/internal/ipc"
+	"github.com/tonypk/openclaw-helper/internal/playbook"
 	"github.com/tonypk/openclaw-helper/internal/report"
 	"github.com/tonypk/openclaw-helper/internal/scriptrun"
 	"github.com/tonypk/openclaw-helper/internal/types"
@@ -68,12 +71,34 @@ func runServer(sc *checker.SystemChecker, pipePath string) {
 	cache := scriptrun.NewCache(scriptCacheDir, "", fallback)
 	runner := scriptrun.NewRunner(cache)
 
+	// Load playbook store
+	pbStore := playbook.NewStore()
+
+	// Create diagnosis engine (before goroutine so it can be captured by closure)
+	diagEngine := diagnosis.NewEngine()
+
 	// Background sync: fetch latest scripts from GitHub.
 	go func() {
 		if err := cache.Sync(); err != nil {
 			log.Printf("[startup] script cache sync failed (will use fallback): %v", err)
 		} else {
 			log.Printf("[startup] script cache synced to %s", scriptCacheDir)
+		}
+
+		// Load playbook store from cache
+		if pbData, err := cache.GetResource("playbooks"); err == nil {
+			if err := pbStore.LoadFromJSON(pbData); err != nil {
+				log.Printf("[startup] failed to parse playbooks: %v", err)
+			} else {
+				log.Printf("[startup] loaded %d playbooks", pbStore.Count())
+			}
+		}
+
+		// Load remote diagnostic rules
+		if diagData, err := cache.GetResource("diagnostics"); err == nil {
+			if err := diagEngine.LoadRemoteRules(diagData); err != nil {
+				log.Printf("[startup] failed to load remote diag rules: %v", err)
+			}
 		}
 	}()
 
@@ -89,9 +114,22 @@ func runServer(sc *checker.SystemChecker, pipePath string) {
 		scriptrun.NewScriptPhaseExecutor(installer.PhaseVerify, runner, cache),
 	})
 
-	// Create diagnosis engine and chat handler
-	diagEngine := diagnosis.NewEngine()
-	playbooks := diagnosis.NewPlaybookRegistry()
+	// Create chat handler dependencies
+	diagPlaybooks := diagnosis.NewPlaybookRegistry()
+
+	// Wire self-healing executor
+	repairRunner := &scriptRepairRunner{runner: runner, cache: cache}
+	healExec := healing.NewExecutor(
+		repairRunner,
+		pbStore,
+		cache, // implements ForceSync() for manifest re-sync
+		3,
+		func(e healing.Event) {
+			log.Printf("[healing] %s: %s %s", e.Type, e.Issue, e.Detail)
+			orch.EmitHealingEvent(e)
+		},
+	)
+	orch.SetHealingExecutor(healExec)
 
 	llmProxy := chat.NewLLMProxy([]chat.LLMProvider{
 		{Name: "DeepSeek", BaseURL: "https://api.deepseek.com/v1", Model: "deepseek-chat"},
@@ -100,7 +138,7 @@ func runServer(sc *checker.SystemChecker, pipePath string) {
 	chatHandler := chat.NewHandler(faqStore, llmProxy, diagEngine)
 
 	router := ipc.NewRouter()
-	registerHandlers(router, sc, orch, diagEngine, playbooks, chatHandler)
+	registerHandlers(router, sc, orch, diagEngine, diagPlaybooks, chatHandler)
 
 	srv := ipc.NewServer(router)
 	if err := srv.Listen(pipePath); err != nil {
@@ -333,6 +371,35 @@ func registerHandlers(router *ipc.Router, sc *checker.SystemChecker, orch *insta
 
 		return result, nil
 	})
+}
+
+// scriptRepairRunner executes repair scripts via the script cache + runner.
+type scriptRepairRunner struct {
+	runner *scriptrun.Runner
+	cache  *scriptrun.Cache
+}
+
+func (r *scriptRepairRunner) RunRepairScript(ctx context.Context, script string, timeout int) error {
+	content, err := r.cache.GetRepairScript(script)
+	if err != nil {
+		return fmt.Errorf("repair script not found: %s: %w", script, err)
+	}
+	runtime := scriptrun.RuntimeWSLBash
+	if strings.HasSuffix(script, ".ps1") {
+		runtime = scriptrun.RuntimePowerShell
+	}
+	entry := &scriptrun.ScriptEntry{
+		Runtime:        runtime,
+		TimeoutSeconds: timeout,
+	}
+	result, runErr := r.runner.RunContent(ctx, entry, content, nil)
+	if runErr != nil {
+		return fmt.Errorf("repair script %s failed: %w", script, runErr)
+	}
+	if result.ExitCode != 0 {
+		return fmt.Errorf("repair script %s exited with code %d: %s", script, result.ExitCode, result.ErrorMessage)
+	}
+	return nil
 }
 
 // scriptCacheDir returns the directory for cached remote scripts.
