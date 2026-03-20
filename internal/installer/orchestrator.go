@@ -6,6 +6,8 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	"github.com/tonypk/openclaw-helper/internal/playbook"
 )
 
 // PhaseExecutor executes a single installation phase.
@@ -396,4 +398,17 @@ func (o *Orchestrator) calculateOverallLocked() int {
 		}
 	}
 	return (completed * 100) / total
+}
+
+// GetHealingHistory returns the current healing history for crash reports.
+func (o *Orchestrator) GetHealingHistory() []playbook.HealingRecord {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	if o.state == nil {
+		return nil
+	}
+	// Return a copy to avoid mutation
+	result := make([]playbook.HealingRecord, len(o.state.HealingHistory))
+	copy(result, o.state.HealingHistory)
+	return result
 }

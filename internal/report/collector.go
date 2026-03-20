@@ -2,6 +2,7 @@
 package report
 
 import (
+	"encoding/json"
 	"fmt"
 	"runtime"
 	"strings"
@@ -28,8 +29,9 @@ type CrashReport struct {
 
 	// Derived summary fields for frontend display
 	SystemSummary string `json:"system_summary"`
-	ErrorPhase    string `json:"error_phase"`
-	ErrorMessage  string `json:"error_message"`
+	ErrorPhase     string `json:"error_phase"`
+	ErrorMessage   string `json:"error_message"`
+	HealingHistory string `json:"healing_history,omitempty"`
 }
 
 // ReportResult is returned after submitting a report.
@@ -61,6 +63,12 @@ func Collect(appVersion string, sc *checker.SystemChecker, orch *installer.Orche
 	}
 
 	report.SystemSummary = buildSystemSummary(sysReport)
+
+	// Collect healing history
+	if history := orch.GetHealingHistory(); len(history) > 0 {
+		historyJSON, _ := json.MarshalIndent(history, "", "  ")
+		report.HealingHistory = string(historyJSON)
+	}
 
 	return report
 }
@@ -138,6 +146,11 @@ func FormatGitHubBody(r CrashReport) string {
 		b.WriteString("\n")
 	}
 
+	if r.HealingHistory != "" {
+		b.WriteString("## Healing History\n\n")
+		b.WriteString("```json\n" + r.HealingHistory + "\n```\n\n")
+	}
+
 	return b.String()
 }
 
@@ -186,6 +199,11 @@ func FormatTelegramBody(r CrashReport) string {
 		for _, issue := range r.DiagReport.Issues {
 			b.WriteString(fmt.Sprintf("• [%s] %s\n", issue.Severity, escapeTelegram(issue.Title)))
 		}
+	}
+
+	if r.HealingHistory != "" {
+		b.WriteString("*Healing History:*\n")
+		b.WriteString("`" + escapeTelegram(r.HealingHistory) + "`\n\n")
 	}
 
 	b.WriteString(fmt.Sprintf("\n🕐 %s", r.Timestamp.Format("2006-01-02 15:04:05")))
