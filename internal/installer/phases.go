@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/tonypk/openclaw-helper/internal/playbook"
 )
 
 // Phase represents an installation phase.
@@ -118,7 +120,8 @@ type InstallState struct {
 	UpdatedAt     time.Time              `json:"updated_at"`
 	ErrorMessage  string                 `json:"error_message,omitempty"`
 	ErrorPhase    Phase                  `json:"error_phase,omitempty"`
-	Metadata      map[string]string      `json:"metadata,omitempty"`
+	Metadata       map[string]string        `json:"metadata,omitempty"`
+	HealingHistory []playbook.HealingRecord `json:"healing_history,omitempty"`
 }
 
 // NewInstallState creates a fresh installation state.
