@@ -11,6 +11,18 @@ import {
   installEvents,
 } from "../api/helper";
 
+function makeLogEvent(message: string, detail?: string): ProgressEvent {
+  return {
+    phase: "_system",
+    status: "info",
+    message,
+    detail,
+    progress: 0,
+    overall: 0,
+    timestamp: new Date().toISOString(),
+  };
+}
+
 export const useInstallStore = defineStore("install", () => {
   const status = ref<InstallStatus | null>(null);
   const events = ref<ProgressEvent[]>([]);
@@ -22,37 +34,51 @@ export const useInstallStore = defineStore("install", () => {
   let lastEventCount = 0;
   let stuckTicks = 0;
   let consecutivePollFailures = 0;
-  const STUCK_THRESHOLD = 30; // seconds with no progress
+  const STUCK_THRESHOLD = 10; // seconds with no progress
   const POLL_FAILURE_THRESHOLD = 5; // consecutive failures before declaring backend dead
+
+  function log(message: string, detail?: string) {
+    events.value.push(makeLogEvent(message, detail));
+  }
 
   async function start() {
     stuck.value = false;
     startError.value = "";
+    log("[frontend] Sending install.start request...");
     try {
-      await installStart();
+      const result = await installStart();
+      log(`[frontend] install.start response: ${result}`);
       startPolling();
     } catch (e) {
-      startError.value = e instanceof Error ? e.message : String(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      log(`[frontend] install.start FAILED: ${msg}`);
+      startError.value = msg;
     }
   }
 
   async function retry() {
     stuck.value = false;
     startError.value = "";
+    log("[frontend] Sending install.retry request...");
     try {
-      await installRetry();
+      const result = await installRetry();
+      log(`[frontend] install.retry response: ${result}`);
       startPolling();
     } catch (e) {
-      startError.value = e instanceof Error ? e.message : String(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      log(`[frontend] install.retry FAILED: ${msg}`);
+      startError.value = msg;
     }
   }
 
   async function cancel() {
+    log("[frontend] Sending install.cancel...");
     await installCancel();
     stopPolling();
   }
 
   async function reset() {
+    log("[frontend] Sending install.reset...");
     await installReset();
     events.value = [];
     status.value = null;
@@ -74,12 +100,12 @@ export const useInstallStore = defineStore("install", () => {
 
     // Forward healing events to healing store
     if (newEvents.length > 0) {
-      const healingStore = useHealingStore()
+      const healingStore = useHealingStore();
       for (const event of newEvents) {
-        if (event.message?.startsWith('HEAL:')) {
+        if (event.message?.startsWith("HEAL:")) {
           try {
-            const healData: HealingEvent = JSON.parse(event.detail || '{}')
-            healingStore.onHealEvent(healData)
+            const healData: HealingEvent = JSON.parse(event.detail || "{}");
+            healingStore.onHealEvent(healData);
           } catch {
             // Ignore malformed healing events
           }
@@ -95,12 +121,18 @@ export const useInstallStore = defineStore("install", () => {
     stuckTicks = 0;
     consecutivePollFailures = 0;
     backendError.value = "";
+    log("[frontend] Polling started (1s interval)");
     pollTimer = setInterval(async () => {
       try {
         await fetchStatus();
         await fetchEvents();
         consecutivePollFailures = 0;
         backendError.value = "";
+
+        // Log status periodically when no events
+        const phase = status.value?.current_phase ?? "unknown";
+        const running = status.value?.running ?? false;
+        const overall = status.value?.overall ?? 0;
 
         // Stuck detection: no new events for STUCK_THRESHOLD seconds
         if (events.value.length > lastEventCount) {
@@ -109,24 +141,40 @@ export const useInstallStore = defineStore("install", () => {
           stuck.value = false;
         } else {
           stuckTicks++;
+          if (stuckTicks === 5) {
+            log(
+              `[frontend] No new events for 5s (phase=${phase}, running=${running}, overall=${overall}%)`,
+            );
+          }
           if (stuckTicks >= STUCK_THRESHOLD) {
+            log(
+              `[frontend] STUCK detected: no events for ${STUCK_THRESHOLD}s (phase=${phase}, running=${running}, overall=${overall}%)`,
+            );
             stuck.value = true;
           }
         }
 
         // Stop polling when done or errored
         if (status.value && !status.value.running) {
-          const phase = status.value.current_phase;
-          if (phase === "done" || phase === "error" || phase === "cancelled") {
+          if (
+            phase === "done" ||
+            phase === "error" ||
+            phase === "cancelled"
+          ) {
+            log(`[frontend] Polling stopped: phase=${phase}`);
             stopPolling();
           }
         }
       } catch (e) {
         consecutivePollFailures++;
+        const msg = e instanceof Error ? e.message : "Backend unreachable";
+        log(
+          `[frontend] Poll failed (${consecutivePollFailures}/${POLL_FAILURE_THRESHOLD}): ${msg}`,
+        );
         if (consecutivePollFailures >= POLL_FAILURE_THRESHOLD) {
-          backendError.value =
-            e instanceof Error ? e.message : "Backend unreachable";
+          backendError.value = msg;
           stuck.value = true;
+          log("[frontend] Backend declared unreachable, polling stopped");
           stopPolling();
         }
       }
@@ -146,10 +194,11 @@ export const useInstallStore = defineStore("install", () => {
     stuck.value = false;
     startError.value = "";
     backendError.value = "";
+    log("[frontend] Reset and restart...");
     try {
       await installReset();
     } catch {
-      // Reset may fail if backend is down, continue anyway
+      log("[frontend] Reset failed (backend may be down), continuing...");
     }
     events.value = [];
     status.value = null;

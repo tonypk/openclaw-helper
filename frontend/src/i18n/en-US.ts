@@ -40,8 +40,9 @@ export default {
     eta: "Estimated time remaining",
     minutes: "minutes",
     chatHint: "Having issues? Ask me!",
+    connecting: "Connecting to backend service, please wait...",
     stuckHint:
-      "Installation seems stuck — no progress for 30 seconds. Please report the issue or retry.",
+      "Installation seems stuck — no progress for 10 seconds. Please report the issue or retry.",
     backendError: "Backend service connection failed",
   },
   config: {
@@ -97,6 +98,7 @@ export default {
     send: "Send",
     repair: "Auto Fix",
     thinking: "Thinking...",
+    offline: "AI assistant offline — backend not connected, FAQ-only mode",
   },
   report: {
     title: "Report Issue",
@@ -108,6 +110,7 @@ export default {
     submitting: "Submitting...",
     success: "Report submitted, thank you!",
     successHint: "We received your feedback and will look into it.",
+    backendDown: "Backend service not connected. Diagnostic info is limited to client-side data.",
     submitFailed: "Submission failed, please try again later",
   },
   healing: {

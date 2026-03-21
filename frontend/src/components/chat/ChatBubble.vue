@@ -23,11 +23,11 @@ const chat = useChatStore()
 .chat-bubble-wrapper {
   position: fixed;
   bottom: 24px;
-  right: 24px;
+  left: 24px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 12px;
 }
 .chat-bubble {

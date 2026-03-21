@@ -77,7 +77,7 @@ function proceed() {
 .check-view {
   max-width: 520px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 40px 20px 80px;
 }
 .check-view h2 {
   margin-bottom: 24px;
@@ -115,5 +115,5 @@ function proceed() {
 :root.dark .check-result--pass { background: #064e3b; }
 :root.dark .check-result--fail { background: #78350f; }
 
-.check-buttons { display: flex; justify-content: space-between; }
+.check-buttons { display: flex; justify-content: space-between; position: relative; z-index: 1001; }
 </style>

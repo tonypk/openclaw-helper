@@ -29,10 +29,11 @@ function formatTime(ts: string): string {
       v-for="(evt, i) in events"
       :key="i"
       class="log-entry"
-      :class="`log-entry--${evt.status}`"
+      :class="[`log-entry--${evt.status}`, { 'log-entry--system': evt.phase === '_system' }]"
     >
       <span class="log-entry__time">[{{ formatTime(evt.timestamp) }}]</span>
       <span class="log-entry__msg">{{ evt.message }}</span>
+      <span v-if="evt.detail" class="log-entry__detail">{{ evt.detail }}</span>
     </div>
     <div v-if="!events.length" class="log-viewer__empty">
       Waiting for logs...
@@ -64,6 +65,18 @@ function formatTime(ts: string): string {
 }
 .log-entry--failed .log-entry__msg {
   color: #f87171;
+}
+.log-entry--system .log-entry__msg {
+  color: #94a3b8;
+}
+.log-entry--system.log-entry--info .log-entry__msg {
+  color: #60a5fa;
+}
+.log-entry__detail {
+  display: block;
+  padding-left: 90px;
+  color: #64748b;
+  font-size: 11px;
 }
 .log-viewer__empty {
   color: #64748b;

@@ -62,6 +62,10 @@ watch(() => chat.messages.length, scrollToBottom)
       <button class="btn btn--icon" @click="chat.toggle()">✕</button>
     </div>
 
+    <div v-if="chat.backendOnline === false" class="chat-panel__offline">
+      {{ t('chat.offline') }}
+    </div>
+
     <div ref="messagesEl" class="chat-panel__messages">
       <ChatMessage
         v-for="(msg, i) in chat.messages"
@@ -127,6 +131,17 @@ watch(() => chat.messages.length, scrollToBottom)
   color: var(--color-text-secondary);
   font-size: 13px;
   padding: 4px 0;
+}
+.chat-panel__offline {
+  padding: 8px 12px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+  text-align: center;
+}
+:root.dark .chat-panel__offline {
+  background: #78350f;
+  color: #fbbf24;
 }
 .chat-panel__suggestions {
   display: flex;

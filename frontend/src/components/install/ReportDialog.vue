@@ -21,6 +21,7 @@ const loading = ref(false)
 const collecting = ref(true)
 const submitted = ref(false)
 const submitError = ref('')
+const backendDown = ref(false)
 
 const REPO = 'tonypk/openclaw-helper'
 
@@ -38,6 +39,7 @@ onMounted(async () => {
     diagInfo.value = report.system_summary || ''
   } catch {
     // Backend unavailable — build basic info client-side
+    backendDown.value = true
     diagInfo.value = buildClientDiagInfo()
   } finally {
     collecting.value = false
@@ -46,11 +48,23 @@ onMounted(async () => {
 
 function buildClientDiagInfo(): string {
   const lines = [
+    `=== Client-Side Diagnostic Report ===`,
     `Phase: ${props.errorPhase || 'unknown'}`,
     `Error: ${props.errorMessage || 'unknown'}`,
     `UserAgent: ${navigator.userAgent}`,
+    `Platform: ${navigator.platform}`,
+    `Language: ${navigator.language}`,
+    `Screen: ${screen.width}x${screen.height}`,
+    `Window: ${window.innerWidth}x${window.innerHeight}`,
     `Time: ${new Date().toISOString()}`,
-    `Note: Go helper sidecar was unreachable`,
+    `Tauri: ${window.__TAURI__ ? 'yes' : 'no (dev mode)'}`,
+    `Backend: UNREACHABLE (Go helper sidecar not responding)`,
+    ``,
+    `=== Possible Causes ===`,
+    `- Go helper sidecar process may have crashed`,
+    `- IPC socket/pipe connection failed`,
+    `- Antivirus may be blocking the helper process`,
+    `- Insufficient permissions to run helper`,
   ]
   return lines.join('\n')
 }
@@ -172,8 +186,12 @@ async function handleSubmit() {
           />
         </div>
 
+        <div v-if="backendDown" class="report-backend-warn">
+          {{ t('report.backendDown') }}
+        </div>
+
         <div class="report-field">
-          <details class="report-details">
+          <details class="report-details" open>
             <summary class="report-summary">{{ t('report.diagInfo') }}</summary>
             <pre v-if="collecting" class="report-diag">Loading...</pre>
             <pre v-else class="report-diag">{{ diagInfo }}</pre>
@@ -349,6 +367,18 @@ async function handleSubmit() {
   margin-bottom: 4px;
 }
 
+.report-backend-warn {
+  padding: 8px 12px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 13px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+:root.dark .report-backend-warn {
+  background: #78350f;
+  color: #fbbf24;
+}
 .report-error {
   color: #ef4444;
   font-size: 13px;

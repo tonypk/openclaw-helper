@@ -40,8 +40,9 @@ export default {
     eta: "预计剩余时间",
     minutes: "分钟",
     chatHint: "安装遇到问题？点我咨询",
+    connecting: "正在连接后台服务，请稍候...",
     stuckHint:
-      "安装似乎卡住了，已超过30秒没有进展。请点击「反馈问题」提交报告，或重试。",
+      "安装似乎卡住了，已超过10秒没有进展。请点击「反馈问题」提交报告，或重试。",
     backendError: "后台服务连接失败",
   },
   config: {
@@ -95,6 +96,7 @@ export default {
     send: "发送",
     repair: "一键修复",
     thinking: "思考中...",
+    offline: "AI 助手离线 — 后台服务未连接，仅提供基本 FAQ 回复",
   },
   report: {
     title: "反馈问题",
@@ -106,6 +108,7 @@ export default {
     submitting: "正在提交...",
     success: "反馈已提交，感谢！",
     successHint: "我们已收到你的反馈，会尽快处理。",
+    backendDown: "后台服务未连接，诊断信息有限。以下为客户端收集的基本信息。",
     submitFailed: "提交失败，请稍后重试",
   },
   healing: {

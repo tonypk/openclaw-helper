@@ -51,11 +51,10 @@ func executeLocalBash(ctx context.Context, content string) (io.Reader, int, erro
 		return nil, 1, fmt.Errorf("start bash: %w", err)
 	}
 
-	pr, pw := io.Pipe()
-	go func() {
-		io.Copy(pw, stdout)
-		pw.Close()
-	}()
+	// IMPORTANT: Read ALL output BEFORE calling cmd.Wait() to avoid deadlock.
+	// Previously used io.Pipe() which is unbuffered — if cmd.Wait() is called
+	// before the pipe reader is drained, the process blocks on stdout write.
+	output, _ := io.ReadAll(stdout)
 
 	exitCode := 0
 	waitErr := cmd.Wait()
@@ -67,5 +66,5 @@ func executeLocalBash(ctx context.Context, content string) (io.Reader, int, erro
 		}
 	}
 
-	return pr, exitCode, waitErr
+	return bytes.NewReader(output), exitCode, waitErr
 }

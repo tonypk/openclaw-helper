@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, computed } from 'vue'
+import { onMounted, onUnmounted, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useInstallStore } from '../stores/install'
@@ -13,11 +13,15 @@ const router = useRouter()
 const { t } = useI18n()
 const install = useInstallStore()
 const chat = useChatStore()
+const starting = ref(true)
 
 const isDone = computed(() => install.status?.current_phase === 'done')
 const isError = computed(() => install.status?.current_phase === 'error')
 const isStuck = computed(() => install.stuck || !!install.startError)
 const overall = computed(() => install.status?.overall ?? 0)
+const isWaiting = computed(() =>
+  starting.value || (install.polling && !isStuck.value && !isError.value && !isDone.value && overall.value === 0 && install.events.length === 0)
+)
 
 const stuckMessage = computed(() => {
   if (install.startError) return install.startError
@@ -26,7 +30,9 @@ const stuckMessage = computed(() => {
 })
 
 onMounted(async () => {
+  starting.value = true
   await install.start()
+  starting.value = false
   chat.setContext({ phase: 'install' })
 })
 
@@ -67,6 +73,11 @@ function goSuccess() {
       <span class="progress-text">{{ overall }}%</span>
     </div>
 
+    <div v-if="isWaiting" class="install-waiting">
+      <div class="waiting-spinner" />
+      <span>{{ t('install.connecting') }}</span>
+    </div>
+
     <HealingProgress />
 
     <ErrorCard
@@ -100,7 +111,7 @@ function goSuccess() {
 .install-view {
   max-width: 560px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 40px 20px 80px;
 }
 .install-view h2 { margin-bottom: 16px; }
 .install-progress {
@@ -133,4 +144,25 @@ function goSuccess() {
   text-align: center;
   margin-top: 24px;
 }
+.install-waiting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #eff6ff;
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin-bottom: 16px;
+}
+:root.dark .install-waiting { background: #1e3a5f; }
+.waiting-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

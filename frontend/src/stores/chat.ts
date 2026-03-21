@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { ChatResponse } from '../api/helper'
-import { chatAsk, chatSetContext, chatSuggestions } from '../api/helper'
+import { chatAsk, chatSetContext, chatSuggestions, helperPing } from '../api/helper'
 
 export interface Message {
   role: 'user' | 'assistant'
@@ -17,6 +17,7 @@ export const useChatStore = defineStore('chat', () => {
   const suggestions = ref<{ text: string; text_en: string }[]>([])
   const loading = ref(false)
   const expanded = ref(false)
+  const backendOnline = ref<boolean | null>(null) // null = not checked yet
 
   async function ask(text: string) {
     messages.value.push({
@@ -73,6 +74,18 @@ export const useChatStore = defineStore('chat', () => {
 
   function toggle() {
     expanded.value = !expanded.value
+    if (expanded.value && backendOnline.value === null) {
+      checkBackend()
+    }
+  }
+
+  async function checkBackend() {
+    try {
+      await helperPing()
+      backendOnline.value = true
+    } catch {
+      backendOnline.value = false
+    }
   }
 
   return {
@@ -80,9 +93,11 @@ export const useChatStore = defineStore('chat', () => {
     suggestions,
     loading,
     expanded,
+    backendOnline,
     ask,
     setContext,
     fetchSuggestions,
     toggle,
+    checkBackend,
   }
 })

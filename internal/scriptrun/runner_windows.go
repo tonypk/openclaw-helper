@@ -3,6 +3,7 @@
 package scriptrun
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -63,12 +64,10 @@ func executeWSLBash(ctx context.Context, distro string, content string) (io.Read
 		return nil, 1, fmt.Errorf("start wsl: %w", err)
 	}
 
-	// Read all output before waiting for exit
-	pr, pw := io.Pipe()
-	go func() {
-		io.Copy(pw, stdout)
-		pw.Close()
-	}()
+	// IMPORTANT: Read ALL output BEFORE calling cmd.Wait() to avoid deadlock.
+	// io.Pipe is unbuffered — if we call cmd.Wait() before draining stdout,
+	// the script blocks on stdout write and cmd.Wait() never returns.
+	output, _ := io.ReadAll(stdout)
 
 	exitCode := 0
 	waitErr := cmd.Wait()
@@ -80,7 +79,7 @@ func executeWSLBash(ctx context.Context, distro string, content string) (io.Read
 		}
 	}
 
-	return pr, exitCode, waitErr
+	return bytes.NewReader(output), exitCode, waitErr
 }
 
 // executePowerShell runs a PowerShell script.
@@ -112,11 +111,8 @@ func executePowerShell(ctx context.Context, content string) (io.Reader, int, err
 		return nil, 1, fmt.Errorf("start powershell: %w", err)
 	}
 
-	pr, pw := io.Pipe()
-	go func() {
-		io.Copy(pw, stdout)
-		pw.Close()
-	}()
+	// IMPORTANT: Read ALL output BEFORE calling cmd.Wait() to avoid deadlock.
+	output, _ := io.ReadAll(stdout)
 
 	exitCode := 0
 	waitErr := cmd.Wait()
@@ -128,7 +124,7 @@ func executePowerShell(ctx context.Context, content string) (io.Reader, int, err
 		}
 	}
 
-	return pr, exitCode, waitErr
+	return bytes.NewReader(output), exitCode, waitErr
 }
 
 // windowsToWSLPath converts a Windows path like C:\Users\foo\bar to /mnt/c/Users/foo/bar.
