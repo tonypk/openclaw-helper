@@ -30,11 +30,14 @@ export const useInstallStore = defineStore("install", () => {
   const stuck = ref(false);
   const startError = ref("");
   const backendError = ref("");
+  const autoRetried = ref(false);
+  const autoRetrying = ref(false);
   let pollTimer: ReturnType<typeof setInterval> | null = null;
   let lastEventCount = 0;
   let stuckTicks = 0;
   let consecutivePollFailures = 0;
   const STUCK_THRESHOLD = 10; // seconds with no progress
+  const AUTO_RETRY_THRESHOLD = 8; // auto-retry before showing stuck error
   const POLL_FAILURE_THRESHOLD = 5; // consecutive failures before declaring backend dead
 
   function log(message: string, detail?: string) {
@@ -146,6 +149,25 @@ export const useInstallStore = defineStore("install", () => {
               `[frontend] No new events for 5s (phase=${phase}, running=${running}, overall=${overall}%)`,
             );
           }
+          // Auto-retry once before declaring stuck
+          if (stuckTicks >= AUTO_RETRY_THRESHOLD && !autoRetried.value && !autoRetrying.value) {
+            autoRetrying.value = true;
+            autoRetried.value = true;
+            log(`[frontend] Auto-retrying after ${AUTO_RETRY_THRESHOLD}s idle...`);
+            try {
+              if (phase === 'idle' || phase === 'cancelled') {
+                await installReset();
+                await installStart();
+              } else {
+                await installRetry();
+              }
+              stuckTicks = 0;
+              lastEventCount = events.value.length;
+            } catch {
+              log("[frontend] Auto-retry failed");
+            }
+            autoRetrying.value = false;
+          }
           if (stuckTicks >= STUCK_THRESHOLD) {
             log(
               `[frontend] STUCK detected: no events for ${STUCK_THRESHOLD}s (phase=${phase}, running=${running}, overall=${overall}%)`,
@@ -212,6 +234,7 @@ export const useInstallStore = defineStore("install", () => {
     stuck,
     startError,
     backendError,
+    autoRetrying,
     start,
     retry,
     cancel,
